@@ -1,2 +1,31 @@
-build
+# Build directory
+build/
+
+# macOS
 .DS_Store
+.cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# FetchContent downloads (auto-managed by CMake)
+_deps/
+
+# Temp files
+*.log
+*.tmp
+
+# Project-specific: 需求文档和开发文档不提交到 git
+requirement.md
+docs/
