@@ -3,7 +3,9 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "tray_manager.h"
+#include "i18n_manager.h"
 #include <iostream>
+#include <filesystem>
 
 // 全局标志：是否应该退出应用
 static bool shouldQuit = false;
@@ -44,7 +46,48 @@ int main() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO &io = ImGui::GetIO(); (void)io;
-  ImGui::StyleColorsDark(); // 使用暗黑主题
+  ImGui::StyleColorsDark();
+  
+  // 加载中文字体
+  std::string fontPath = "assets/fonts/NotoSansSC-Regular.ttf";
+  bool fontLoaded = false;
+  
+  if (std::filesystem::exists(fontPath)) {
+    ImFontConfig fontConfig;
+    fontConfig.OversampleH = 2;
+    fontConfig.OversampleV = 1;
+    fontConfig.PixelSnapH = true;
+    
+    static const ImWchar chineseRanges[] = {
+      0x0020, 0x00FF,  // Basic Latin + Latin Supplement
+      0x4E00, 0x9FFF,  // CJK Unified Ideographs
+      0
+    };
+    
+    ImFont* font = io.Fonts->AddFontFromFileTTF(
+      fontPath.c_str(), 
+      18.0f, 
+      &fontConfig,
+      chineseRanges
+    );
+    
+    if (font) {
+      io.FontDefault = font;
+      fontLoaded = true;
+      std::cout << "Loaded Chinese font: " << fontPath << std::endl;
+    }
+  }
+  
+  if (!fontLoaded) {
+    std::cout << "Warning: Chinese font not found, using default font" << std::endl;
+    std::cout << "Download NotoSansSC-Regular.ttf to assets/fonts/ for Chinese support" << std::endl;
+  }
+  
+  // 初始化国际化
+  auto& i18n = SnapTrans::I18nManager::getInstance();
+  if (!i18n.initialize("assets/locales")) {
+    std::cerr << "Warning: Failed to initialize i18n manager" << std::endl;
+  }
 
   // 初始化 ImGui 的 GLFW 和 OpenGL 后端
   ImGui_ImplGlfw_InitForOpenGL(window, true);
