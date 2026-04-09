@@ -2,7 +2,29 @@
 #include <iostream>
 #include <cstring>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace SnapTrans {
+
+#ifdef _WIN32
+static std::string utf8ToLocalCodepage(const char* utf8) {
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, nullptr, 0);
+    if (wlen <= 0) return utf8;
+    
+    std::wstring wstr(wlen, 0);
+    MultiByteToWideChar(CP_UTF8, 0, utf8, -1, &wstr[0], wlen);
+    
+    int clen = WideCharToMultiByte(CP_ACP, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (clen <= 0) return utf8;
+    
+    std::string result(clen, 0);
+    WideCharToMultiByte(CP_ACP, 0, wstr.c_str(), -1, &result[0], clen, nullptr, nullptr);
+    result.pop_back();
+    return result;
+}
+#endif
 
 TrayManager& TrayManager::getInstance() {
     static TrayManager instance;
@@ -64,7 +86,12 @@ void TrayManager::toggleWindowVisibility() {
 void TrayManager::setupMenu() {
     int idx = 0;
     
+#ifdef _WIN32
+    menuTexts_[idx] = utf8ToLocalCodepage("显示/隐藏");
+    menuItems_[idx].text = const_cast<char*>(menuTexts_[idx].c_str());
+#else
     menuItems_[idx].text = const_cast<char*>("显示/隐藏");
+#endif
     menuItems_[idx].disabled = 0;
     menuItems_[idx].checked = 0;
     menuItems_[idx].cb = onShowHideClicked;
@@ -72,7 +99,12 @@ void TrayManager::setupMenu() {
     menuItems_[idx].submenu = nullptr;
     idx++;
     
+#ifdef _WIN32
+    menuTexts_[idx] = utf8ToLocalCodepage("设置");
+    menuItems_[idx].text = const_cast<char*>(menuTexts_[idx].c_str());
+#else
     menuItems_[idx].text = const_cast<char*>("设置");
+#endif
     menuItems_[idx].disabled = 0;
     menuItems_[idx].checked = 0;
     menuItems_[idx].cb = onSettingsClicked;
@@ -88,7 +120,12 @@ void TrayManager::setupMenu() {
     menuItems_[idx].submenu = nullptr;
     idx++;
     
+#ifdef _WIN32
+    menuTexts_[idx] = utf8ToLocalCodepage("关于");
+    menuItems_[idx].text = const_cast<char*>(menuTexts_[idx].c_str());
+#else
     menuItems_[idx].text = const_cast<char*>("关于");
+#endif
     menuItems_[idx].disabled = 0;
     menuItems_[idx].checked = 0;
     menuItems_[idx].cb = onAboutClicked;
@@ -104,7 +141,12 @@ void TrayManager::setupMenu() {
     menuItems_[idx].submenu = nullptr;
     idx++;
     
+#ifdef _WIN32
+    menuTexts_[idx] = utf8ToLocalCodepage("退出");
+    menuItems_[idx].text = const_cast<char*>(menuTexts_[idx].c_str());
+#else
     menuItems_[idx].text = const_cast<char*>("退出");
+#endif
     menuItems_[idx].disabled = 0;
     menuItems_[idx].checked = 0;
     menuItems_[idx].cb = onQuitClicked;

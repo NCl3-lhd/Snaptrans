@@ -55,9 +55,12 @@ int main() {
   
   // macOS: App Bundle 使用 Template 图标名（imageNamed: 从 Resources 加载）
   // 文件名包含 "Template" 后缀，系统自动识别为 template image
-  // Windows/Linux: 使用相对路径
+  // Windows: 使用 .ico 格式（ExtractIconEx 只支持 .ico）
+  // Linux: 使用 .png 格式
   #if defined(__APPLE__)
     std::string iconPath = "trayTemplate";
+  #elif defined(_WIN32) || defined(_WIN64)
+    std::string iconPath = "icons/tray.ico";
   #else
     std::string iconPath = "icons/tray.png";
   #endif

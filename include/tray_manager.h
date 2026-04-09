@@ -119,8 +119,8 @@ private:
     MenuCallback exitCallback_;
     std::string storedIconPath_;
     
-    // 菜单项（需要持久化）
-    struct tray_menu menuItems_[10]; // 足够容纳所有菜单项
+    std::string menuTexts_[10];
+    struct tray_menu menuItems_[10];
 };
 
 } // namespace SnapTrans
