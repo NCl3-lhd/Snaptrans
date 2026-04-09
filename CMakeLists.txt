@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(SnapTrans)
+project(Snaptrans)
 
 # 使用 C++17 标准
 set(CMAKE_CXX_STANDARD 17)
@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 设置默认构建类型为 Debug（用于 VS Code IntelliSense）
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
 # 强制 Windows MSVC 使用 UTF-8 编码（解决中文乱码问题）
@@ -54,7 +54,7 @@ FetchContent_MakeAvailable(json)
 # 4. 查找操作系统自带的 OpenGL
 find_package(OpenGL REQUIRED)
 
-# 4. 收集 ImGui 的源文件
+# 5. 收集 ImGui 的源文件
 set(IMGUI_SOURCES
   ${imgui_SOURCE_DIR}/imgui.cpp
   ${imgui_SOURCE_DIR}/imgui_demo.cpp
@@ -65,7 +65,7 @@ set(IMGUI_SOURCES
   ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-# 5. 项目源文件
+# 6. 项目源文件
 set(PROJECT_SOURCES
   src/main.cpp
   src/tray_manager.cpp
@@ -73,22 +73,22 @@ set(PROJECT_SOURCES
   ${IMGUI_SOURCES}
 )
 
-# 6. 创建我们的可执行文件 SnapTrans
+# 7. 创建我们的可执行文件 Snaptrans
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
-# macOS: 创建 App Bundle
+# 8. macOS: 创建 App Bundle (清理了原先冗余的局部复制逻辑)
 if(APPLE)
   set_target_properties(${PROJECT_NAME} PROPERTIES
     MACOSX_BUNDLE TRUE
-    MACOSX_BUNDLE_INFO_STRING "SnapTrans - Screen Translation Tool"
+    MACOSX_BUNDLE_INFO_STRING "Snaptrans - Screenshot and Translation Tool"
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.snaptrans.app"
-    MACOSX_BUNDLE_BUNDLE_NAME "SnapTrans"
+    MACOSX_BUNDLE_BUNDLE_NAME "Snaptrans"
     MACOSX_BUNDLE_BUNDLE_VERSION "0.1.0"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1.0"
     MACOSX_BUNDLE_LONG_VERSION_STRING "0.1.0"
   )
 
-  # 将图标文件复制到 bundle 的 Resources 目录
+  # 将图标文件注册到 bundle 的 Resources 目录
   set(ICON_FILE trayTemplate.png)
   set(ICON_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/${ICON_FILE})
 
@@ -98,37 +98,23 @@ if(APPLE)
     )
     target_sources(${PROJECT_NAME} PRIVATE ${ICON_SOURCE})
   endif()
-
-  # 复制 locales 目录到 bundle（多语言配置）
-  set(LOCALES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets/locales)
-
-  if(EXISTS ${LOCALES_DIR})
-    file(COPY ${LOCALES_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/SnapTrans.app/Contents/Resources)
-  endif()
-
-  # 复制字体目录到 bundle
-  set(FONTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts)
-
-  if(EXISTS ${FONTS_DIR})
-    file(COPY ${FONTS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/SnapTrans.app/Contents/Resources)
-  endif()
 endif()
 
-# 7. 告诉编译器去哪里找头文件 (#include)
+# 9. 告诉编译器去哪里找头文件 (#include)
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${imgui_SOURCE_DIR}
   ${imgui_SOURCE_DIR}/backends
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# 8. 配置 tray 库支持
+# 10. 配置 tray 库支持
 set(TRAY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tray)
 target_include_directories(${PROJECT_NAME} PRIVATE ${TRAY_DIR})
 
-# 9. 平台特定配置
+# 11. 平台特定配置 (重点修复区)
 if(APPLE)
-  # macOS: 链接 Cocoa 框架
-  target_link_libraries(${PROJECT_NAME} PRIVATE "-framework Cocoa")
+  # macOS: 链接 Cocoa 和 CoreGraphics 框架（修复：补充屏幕抓取底层依赖）
+  target_link_libraries(${PROJECT_NAME} PRIVATE "-framework Cocoa" "-framework CoreGraphics")
   target_compile_definitions(${PROJECT_NAME} PRIVATE TRAY_APPKIT=1)
 
   # 屏蔽 OpenGL 废弃警告
@@ -147,16 +133,24 @@ elseif(UNIX AND NOT APPLE)
   target_compile_definitions(${PROJECT_NAME} PRIVATE TRAY_APPINDICATOR=1)
 endif()
 
-# 10. 链接库
+# 12. 链接通用库
 target_link_libraries(${PROJECT_NAME} PRIVATE
   glfw
   OpenGL::GL
   nlohmann_json::nlohmann_json
 )
 
-# 11. 复制资源文件到构建目录
+# 13. 统一且清爽的跨平台资源复制逻辑 (修复：防止资源多重拷贝)
 set(ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 
 if(EXISTS ${ASSETS_DIR})
-  file(COPY ${ASSETS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+  if(APPLE)
+    # macOS: 将整个 assets 目录统一复制到 App Bundle 的 Resources 中
+    # 结果路径: Snaptrans.app/Contents/Resources/assets/
+    file(COPY ${ASSETS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.app/Contents/Resources)
+  else()
+    # Win/Linux: 复制到与可执行文件同级的构建目录
+    # 结果路径: build/assets/
+    file(COPY ${ASSETS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+  endif()
 endif()
