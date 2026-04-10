@@ -60,14 +60,33 @@ void TrayManager::setWindowVisible(bool visible) {
 
 	windowVisible_ = visible;
 	if (visible) {
+		// 🌟 第一步：先搭台（在窗口还是隐藏状态时，把物理形态调好）
+		// 向系统查询：现在是否缩在任务栏里？
+		if (glfwGetWindowAttrib(window_, GLFW_ICONIFIED)) {
+			if (glfwGetWindowAttrib(window_, GLFW_MAXIMIZED)) {
+				// 如果缩下去前是全屏，先下达“最大化”指令
+				glfwMaximizeWindow(window_);
+			}
+			else {
+				// 如果缩下去前是普通窗，先下达“还原”指令
+				glfwRestoreWindow(window_);
+			}
+		}
+
+		// 🌟 第二步：再拉幕（一切就绪后，一次性把完美的窗口呈现给用户）
+		// 此时调用 ShowWindow，系统会直接以“最终形态”完成动画显示
 		glfwShowWindow(window_);
+
+		// 第三步：聚焦
 		glfwFocusWindow(window_);
+
 	}
 	else {
+		// 隐藏逻辑保持不变
 		glfwHideWindow(window_);
 	}
 
-	// 🌟 使用常量索引，代码阅读起来像自然语言一样顺畅
+	// 同步托盘菜单状态
 	menuItems_[MenuIndex::ShowHide].checked = windowVisible_ ? 1 : 0;
 	tray_update(&tray_);
 }
@@ -112,7 +131,7 @@ void TrayManager::setupMenu() {
 
 	// 把数组底层内存交给 C 库
 	tray_.menu = menuItems_.data();
-	}
+}
 
 void TrayManager::onShowHideClicked(struct tray_menu *item) {
 	TrayManager *manager = static_cast<TrayManager *>(item->context);
