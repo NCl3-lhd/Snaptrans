@@ -70,34 +70,48 @@ set(PROJECT_SOURCES
   src/main.cpp
   src/tray_manager.cpp
   src/i18n_manager.cpp
+  src/settings_window.cpp
   ${IMGUI_SOURCES}
 )
 
-# 7. 创建我们的可执行文件 Snaptrans
-add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
+# ==========================================================
+# 🌟 7. 系统级打包：为不同系统准备资源文件 (图标注入)
+# ==========================================================
+if(WIN32)
+  # Windows 平台：使用当前目录下的 app.rc 脚本
+  set(APP_ICON_RESOURCE ${CMAKE_CURRENT_SOURCE_DIR}/app.rc)
+elseif(APPLE)
+  # macOS 平台：使用 .icns 图标文件，并将其塞进 App Bundle 的 Resources 目录
+  set(APP_ICON_RESOURCE ${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/tray.icns)
 
-# 8. macOS: 创建 App Bundle (清理了原先冗余的局部复制逻辑)
+  if(EXISTS ${APP_ICON_RESOURCE})
+    set_source_files_properties(${APP_ICON_RESOURCE} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+  endif()
+else()
+  # Linux: 不需要系统级打包图标文件
+  set(APP_ICON_RESOURCE "")
+endif()
+
+# ==========================================================
+# 🌟 8. 创建可执行文件 (动态区分打包模式)
+# ==========================================================
 if(APPLE)
+  # Mac 必须加上 MACOSX_BUNDLE，才会生成 .app 应用程序
+  add_executable(${PROJECT_NAME} MACOSX_BUNDLE ${PROJECT_SOURCES} ${APP_ICON_RESOURCE})
+
+  # 配置 Mac App Bundle 的 Info.plist 属性
   set_target_properties(${PROJECT_NAME} PROPERTIES
-    MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_INFO_STRING "Snaptrans - Screenshot and Translation Tool"
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.snaptrans.app"
     MACOSX_BUNDLE_BUNDLE_NAME "Snaptrans"
     MACOSX_BUNDLE_BUNDLE_VERSION "0.1.0"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1.0"
     MACOSX_BUNDLE_LONG_VERSION_STRING "0.1.0"
+    MACOSX_BUNDLE_ICON_FILE "tray.icns" # 核心：告诉苹果系统主图标是谁
   )
-
-  # 将图标文件注册到 bundle 的 Resources 目录
-  set(ICON_FILE trayTemplate.png)
-  set(ICON_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/${ICON_FILE})
-
-  if(EXISTS ${ICON_SOURCE})
-    set_source_files_properties(${ICON_SOURCE} PROPERTIES
-      MACOSX_PACKAGE_LOCATION "Resources"
-    )
-    target_sources(${PROJECT_NAME} PRIVATE ${ICON_SOURCE})
-  endif()
+else()
+  # Windows (加上 WIN32 标志隐藏后台黑框框控制台) 和 Linux 的正常编译
+  add_executable(${PROJECT_NAME} WIN32 ${PROJECT_SOURCES} ${APP_ICON_RESOURCE})
 endif()
 
 # 9. 告诉编译器去哪里找头文件 (#include)
@@ -111,9 +125,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 set(TRAY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/tray)
 target_include_directories(${PROJECT_NAME} PRIVATE ${TRAY_DIR})
 
-# 11. 平台特定配置 (重点修复区)
+# 11. 平台特定配置
 if(APPLE)
-  # macOS: 链接 Cocoa 和 CoreGraphics 框架（修复：补充屏幕抓取底层依赖）
+  # macOS: 链接 Cocoa 和 CoreGraphics 框架
   target_link_libraries(${PROJECT_NAME} PRIVATE "-framework Cocoa" "-framework CoreGraphics")
   target_compile_definitions(${PROJECT_NAME} PRIVATE TRAY_APPKIT=1)
 
@@ -140,12 +154,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   nlohmann_json::nlohmann_json
 )
 
-# 13. 统一且清爽的跨平台资源复制逻辑 (终极修复版：独立任务，每次必更)
+# 13. 统一且清爽的跨平台资源复制逻辑
 set(ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 
 if(EXISTS ${ASSETS_DIR})
   if(APPLE)
-    # macOS: 创建一个独立的自定义目标，加入 ALL 表示每次 Build 必定执行
+    # macOS: 拷贝到 App Bundle 里
     add_custom_target(SyncAssets ALL
       COMMAND ${CMAKE_COMMAND} -E copy_directory
       ${ASSETS_DIR}
@@ -153,15 +167,15 @@ if(EXISTS ${ASSETS_DIR})
       COMMENT "Syncing assets to macOS App Bundle..."
     )
   else()
-    # Win/Linux: 同步到 build 目录
+    # Win/Linux: 直接拷贝到当前的 Build 目录
     add_custom_target(SyncAssets ALL
       COMMAND ${CMAKE_COMMAND} -E copy_directory
       ${ASSETS_DIR}
-      $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
+      ${CMAKE_CURRENT_BINARY_DIR}/assets
       COMMENT "Syncing assets to build directory..."
     )
   endif()
 
-  # 建立依赖关系：在编译主程序之前，必须先完成同步任务
+  # 建立单向依赖：编译主程序之前，安全地完成同步任务
   add_dependencies(${PROJECT_NAME} SyncAssets)
 endif()

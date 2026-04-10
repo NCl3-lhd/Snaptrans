@@ -13,8 +13,11 @@ class I18nManager {
 
     private:
     I18nManager() = default;
+    ~I18nManager() = default;
+    I18nManager(const I18nManager &) = delete;
+    I18nManager &operator=(const I18nManager &) = delete;
     std::unordered_map<std::string, std::string> dictionary_;
-    std::string currentLocale_ = "zh-CN";
+    std::string currentLocale_ = "en_US";
 };
 
 #define tr(key) I18nManager::getInstance().get(key).c_str()

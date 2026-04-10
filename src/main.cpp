@@ -4,30 +4,40 @@
 #include "imgui_impl_opengl3.h"
 #include "tray_manager.h"
 #include "i18n_manager.h" 
+#include "settings_window.h"
 #include <iostream>
 #include <filesystem>
-#include <vector>
-
+// 只能在某一个 .cpp 文件里定义 IMPLEMENTATION，通常就在 main.cpp
+#define STB_IMAGE_IMPLEMENTATION 
+#include "stb_image.h"
 namespace fs = std::filesystem;
-static bool should_quit = false;
 
-// 🌟 全局标记：用于动态重建字体图集
-static bool g_need_font_rebuild = true;
-// 记录当前的语言状态，用于判断是否需要合并中文字体
-static std::string g_current_locale = "en_US";
+// =====================================================================
+// 全局常量配置区
+// =====================================================================
+namespace Config {
+  // 窗口配置
+  constexpr int   WINDOW_WIDTH = 450;
+  constexpr int   WINDOW_HEIGHT = 250;
+  constexpr const char *WINDOW_TITLE = "Snaptrans";
 
-// 扫描目录助手
-std::vector<std::string> scanDirectory(const std::string &path, const std::string &ext) {
-  std::vector<std::string> files;
-  if (fs::exists(path) && fs::is_directory(path)) {
-    for (const auto &entry : fs::directory_iterator(path)) {
-      if (entry.path().extension() == ext) {
-        files.push_back(entry.path().filename().string());
-      }
-    }
-  }
-  return files;
+  // 渲染与休眠控制
+  constexpr float CLEAR_COLOR[4] = { 0.12f, 0.12f, 0.12f, 1.0f }; // 深灰色背景
+  constexpr double IDLE_TIMEOUT = 0.016; // 后台休眠唤醒间隔 (约 60FPS)
+
+  // 字体配置
+  constexpr float FONT_SIZE = 18.0f;
+  constexpr const char *BASE_FONT_PATH = "assets/fonts/NotoSans_Medium.ttf";
+  constexpr const char *CJK_FONT_PATH = "assets/fonts/NotoSansSC_Medium.ttf";
+
+  // 默认状态
+  constexpr const char *DEFAULT_LOCALE = "en_US";
 }
+// =====================================================================
+
+static bool should_quit = false;
+static bool g_need_font_rebuild = true;
+static std::string g_current_locale = Config::DEFAULT_LOCALE;
 
 // 哨兵回调
 void windowCloseCallback(GLFWwindow *window) {
@@ -52,26 +62,37 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-  // =====================================================================
-  // 1. 初始化语言：默认硬编码为英文 en_US
-  // =====================================================================
-  g_current_locale = "en_US";
+  // 初始化语言
+  g_current_locale = Config::DEFAULT_LOCALE;
   I18nManager::getInstance().loadLanguage(g_current_locale);
 
-  std::vector<std::string> locales = scanDirectory("assets/locales", ".json");
-  int current_locale_idx = 0;
-  for (int i = 0; i < locales.size(); ++i) {
-    if (locales[i].find(g_current_locale) != std::string::npos) {
-      current_locale_idx = i;
-      break;
-    }
-  }
+  // 实例化 UI 模块并初始化
+  SettingsWindow settingsWin;
+  settingsWin.init(g_current_locale);
 
-  // 默认启动隐藏窗口
+  // 创建窗口 (引用 Config)
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-  GLFWwindow *window = glfwCreateWindow(700, 450, "SnapTrans", NULL, NULL);
+  GLFWwindow *window = glfwCreateWindow(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Config::WINDOW_TITLE, NULL, NULL);
   if (!window) { glfwTerminate(); return -1; }
 
+  // ==========================================================
+  // 🌟 代码运行时：动态注入窗口图标 (仅限 Windows / Linux)
+  // macOS 窗口没有标题栏图标，且 Dock 图标由 .app 里的 .icns 接管，故跳过
+  // ==========================================================
+#ifndef __APPLE__
+  GLFWimage images[1];
+  images[0].pixels = stbi_load("assets/icons/tray.png", &images[0].width, &images[0].height, 0, 4);
+
+  if (images[0].pixels) {
+    glfwSetWindowIcon(window, 1, images);
+    stbi_image_free(images[0].pixels);
+  }
+  else {
+    // 如果在 Windows 下依然报错，可以打印真正的错误原因：
+    std::cerr << "Warning: Failed to load window icon! Reason: " << stbi_failure_reason() << std::endl;
+  }
+#endif
+  
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
 
@@ -84,8 +105,7 @@ int main() {
   ImGuiIO &io = ImGui::GetIO(); (void)io;
 
   ImGui::StyleColorsDark();
-  ImGuiStyle &style = ImGui::GetStyle();
-  style.WindowRounding = 0.0f;
+  ImGui::GetStyle().WindowRounding = 0.0f;
 
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init("#version 330");
@@ -102,21 +122,15 @@ int main() {
 
   trayManager.initialize(window, iconPath);
   trayManager.setWindowVisible(false);
-
   trayManager.setExitCallback([&window]() {
     should_quit = true;
     glfwSetWindowShouldClose(window, GLFW_TRUE);
   });
 
-  static bool autoStart = false;
-  static char defaultSavePath[256] = "C:\\SnapTrans\\Images";
-
   // =================== 主循环 ===================
   while (!glfwWindowShouldClose(window) && !should_quit) {
 
-    // =====================================================================
-    // 🌟 核心逻辑：根据语言动态重载和合并字体
-    // =====================================================================
+    // 1. 字体动态合并机制 (引用 Config)
     if (g_need_font_rebuild) {
       ImGui_ImplOpenGL3_DestroyDeviceObjects();
       io.Fonts->Clear();
@@ -125,134 +139,60 @@ int main() {
       font_config.OversampleH = 2;
       font_config.OversampleV = 2;
 
-      // 1. 无条件加载基础英文字体 (默认排在第一位)
-      std::string engFontPath = "assets/fonts/NotoSans_Medium.ttf";
-      if (fs::exists(engFontPath)) {
-        io.Fonts->AddFontFromFileTTF(engFontPath.c_str(), 18.0f, &font_config, io.Fonts->GetGlyphRangesDefault());
+      // 无条件加载保底字体
+      if (fs::exists(Config::BASE_FONT_PATH)) {
+        io.Fonts->AddFontFromFileTTF(Config::BASE_FONT_PATH, Config::FONT_SIZE, &font_config, io.Fonts->GetGlyphRangesDefault());
       }
       else {
-        std::cerr << "Warning: Base English font missing!" << std::endl;
-        io.Fonts->AddFontDefault(); // 兜底：如果连英文字体都找不到，用 ImGui 自带的像素字体
+        io.Fonts->AddFontDefault();
       }
 
-      // 2. 如果当前语言包含中文 (zh_CN)，则动态合并中文字体
+      // 根据语言动态追加 CJK 字体
       if (g_current_locale == "zh_CN") {
-        std::string chnFontPath = "assets/fonts/NotoSansSC_Medium.ttf"; // 确保你也有这个中文字体文件
-        if (fs::exists(chnFontPath)) {
-          font_config.MergeMode = true; // 开启合并模式！
-          font_config.PixelSnapH = false; // 建议关闭像素对齐，防止中英文混合时挤在一起
-          io.Fonts->AddFontFromFileTTF(chnFontPath.c_str(), 18.0f, &font_config, io.Fonts->GetGlyphRangesChineseFull());
-        }
-        else {
-          std::cerr << "Warning: Chinese font missing!" << std::endl;
+        if (fs::exists(Config::CJK_FONT_PATH)) {
+          font_config.MergeMode = true;
+          font_config.PixelSnapH = false;
+          io.Fonts->AddFontFromFileTTF(Config::CJK_FONT_PATH, Config::FONT_SIZE, &font_config, io.Fonts->GetGlyphRangesChineseFull());
         }
       }
 
       ImGui_ImplOpenGL3_CreateDeviceObjects();
       g_need_font_rebuild = false;
     }
-    // =====================================================================
 
+    // 2. 事件分发与休眠 (引用 Config)
     if (glfwGetWindowAttrib(window, GLFW_VISIBLE)) glfwPollEvents();
-    else glfwWaitEventsTimeout(0.016);
+    else glfwWaitEventsTimeout(Config::IDLE_TIMEOUT);
 
     trayManager.update();
 
+    // 3. 渲染骨架
     if (glfwGetWindowAttrib(window, GLFW_VISIBLE)) {
       ImGui_ImplOpenGL3_NewFrame();
       ImGui_ImplGlfw_NewFrame();
       ImGui::NewFrame();
 
-      glfwSetWindowTitle(window, tr("settings.title"));
+      glfwSetWindowTitle(window, tr("main_window.title"));
 
-      ImGui::SetNextWindowPos(ImVec2(0, 0));
-      ImGui::SetNextWindowSize(io.DisplaySize);
-      ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+      // 核心：把控制权交给 UI 类！
+      settingsWin.render(g_need_font_rebuild, g_current_locale);
 
-      ImGui::Begin("MainSettingsWindow", nullptr, windowFlags);
-
-      if (ImGui::BeginTabBar("SettingsTabBar", ImGuiTabBarFlags_None)) {
-
-        // --- 选项卡 1：通用 ---
-        if (ImGui::BeginTabItem(tr("settings.title"))) {
-          ImGui::Spacing(); ImGui::Spacing();
-
-          ImGui::Text("%s", tr("settings.language"));
-          ImGui::SameLine(150);
-          if (ImGui::BeginCombo("##LangCombo", locales.empty() ? "None" : locales[current_locale_idx].c_str())) {
-            for (int n = 0; n < locales.size(); n++) {
-              bool is_selected = (current_locale_idx == n);
-              if (ImGui::Selectable(locales[n].c_str(), is_selected)) {
-                current_locale_idx = n;
-                std::string code = locales[n].substr(0, locales[n].find_last_of('.'));
-
-                // 如果语言发生了实质性改变
-                if (g_current_locale != code) {
-                  g_current_locale = code;
-                  I18nManager::getInstance().loadLanguage(g_current_locale);
-                  TrayManager::getInstance().rebuildMenu();
-
-                  // 🌟 触发字体图集重建
-                  g_need_font_rebuild = true;
-                }
-              }
-              if (is_selected) ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-          }
-
-          ImGui::Spacing();
-          ImGui::Text("%s", tr("settings.default_save_path"));
-          ImGui::SameLine(150);
-          ImGui::InputText("##SavePath", defaultSavePath, IM_ARRAYSIZE(defaultSavePath));
-
-          ImGui::Spacing();
-          ImGui::Checkbox(tr("settings.auto_start"), &autoStart);
-
-          ImGui::Spacing();
-          if (ImGui::Button(tr("common.save"), ImVec2(80, 0))) {
-            // TODO: 保存配置到 config.json
-          }
-
-          ImGui::EndTabItem();
-        }
-
-        // --- 选项卡 2：快捷键 ---
-        if (ImGui::BeginTabItem(tr("settings.hotkey"))) {
-          ImGui::Spacing(); ImGui::Spacing();
-          ImGui::Text("%s:", tr("settings.screenshot_hotkey")); ImGui::SameLine(150); ImGui::Button("Ctrl + Alt + A");
-          ImGui::Spacing();
-          ImGui::Text("%s:", tr("settings.translate_hotkey")); ImGui::SameLine(150); ImGui::Button("Ctrl + C + C");
-          ImGui::EndTabItem();
-        }
-
-        // --- 选项卡 3：关于 ---
-        if (ImGui::BeginTabItem(tr("menu.about"))) {
-          ImGui::Spacing(); ImGui::Spacing();
-          ImGui::Text("%s", tr("about.title"));
-          ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s", tr("about.description"));
-          ImGui::Spacing();
-          ImGui::Text("%s: %s", tr("about.version"), tr("app_version"));
-          ImGui::Text("%s", tr("about.author"));
-          ImGui::EndTabItem();
-        }
-
-        ImGui::EndTabBar();
-      }
-
-      ImGui::End();
       ImGui::Render();
 
       int display_w, display_h;
       glfwGetFramebufferSize(window, &display_w, &display_h);
       glViewport(0, 0, display_w, display_h);
-      glClearColor(0.12f, 0.12f, 0.12f, 1.0f);
+
+      // 引用 Config 中的背景颜色
+      glClearColor(Config::CLEAR_COLOR[0], Config::CLEAR_COLOR[1], Config::CLEAR_COLOR[2], Config::CLEAR_COLOR[3]);
       glClear(GL_COLOR_BUFFER_BIT);
+
       ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
       glfwSwapBuffers(window);
     }
   }
 
+  // =================== 清理与退出 ===================
   trayManager.shutdown();
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();

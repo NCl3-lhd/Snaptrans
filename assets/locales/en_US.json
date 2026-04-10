@@ -1,68 +1,35 @@
 {
-  "app_name": "SnapTrans",
-  "app_version": "0.1.0",
-  
   "menu": {
     "show_hide": "Show/Hide",
     "settings": "Settings",
     "about": "About",
     "quit": "Quit"
   },
-  "settings": {
-    "title": "Settings",
-    "language": "Language",
-    "font": "font",
-    "hotkey": "Hotkeys",
-    "screenshot_hotkey": "Screenshot Hotkey",
-    "translate_hotkey": "Translate Hotkey",
-    "default_save_path": "Default Save Path",
-    "default_translate_lang": "Default Translate Language",
-    "auto_start": "Launch at Startup",
-    "save": "Save",
-    "cancel": "Cancel"
-  },
-  "about": {
-    "title": "About SnapTrans",
-    "description": "Cross-platform Screenshot & Translation Tool",
-    "version": "Version",
-    "author": "Developer",
-    "license": "License",
-    "close": "Close"
-  },
-  "screenshot": {
-    "select_area": "Select Area",
-    "adjust_area": "Adjust Area",
-    "toolbar": {
-      "rectangle": "Rectangle",
-      "circle": "Circle",
-      "line": "Line",
-      "arrow": "Arrow",
-      "pen": "Pen",
-      "text": "Text",
-      "mosaic": "Mosaic",
-      "color": "Color",
-      "undo": "Undo",
-      "pin": "Pin",
+  "main_window": {
+    "title": "Snaptrans Settings",
+    "preferences": {
+      "title": "Preferences",
+      "language": "Language",
+      "font": "font",
+      "default_save_path": "Default Save Path",
+      "auto_start": "Launch at Startup",
       "save": "Save",
-      "cancel": "Cancel",
-      "copy": "Copy"
+      "cancel": "Cancel"
+    },
+    "control": {
+      "title": "Control",
+      "screenshot_hotkey": "Screenshot Hotkey",
+      "translate_hotkey": "Translate Hotkey"
+    },
+    "about": {
+      "title": "About",
+      "app_name": "Snaptrans",
+      "description": "Cross-platform Screenshot & Translation Tool",
+      "version": "Version",
+      "app_version": "0.1.0",
+      "author": "Developer: NCl3",
+      "license": "License",
+      "close": "Close"
     }
-  },
-  "translate": {
-    "original": "Original",
-    "translated": "Translated",
-    "target_language": "Target Language",
-    "translating": "Translating...",
-    "error": "Translation Failed",
-    "retry": "Retry"
-  },
-  "common": {
-    "ok": "OK",
-    "cancel": "Cancel",
-    "save": "Save",
-    "delete": "Delete",
-    "edit": "Edit",
-    "copy": "Copy",
-    "paste": "Paste"
   }
 }

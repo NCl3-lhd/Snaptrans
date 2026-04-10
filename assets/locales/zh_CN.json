@@ -1,67 +1,35 @@
 {
-  "app_name": "SnapTrans",
-  "app_version": "0.1.0",
   "menu": {
     "show_hide": "显示/隐藏",
     "settings": "设置",
     "about": "关于",
     "quit": "退出"
   },
-  "settings": {
-    "title": "设置",
-    "language": "语言",
-    "font": "字体",
-    "hotkey": "快捷键",
-    "screenshot_hotkey": "截图快捷键",
-    "translate_hotkey": "翻译快捷键",
-    "default_save_path": "默认保存路径",
-    "default_translate_lang": "默认翻译语言",
-    "auto_start": "开机自启动",
-    "save": "保存",
-    "cancel": "取消"
-  },
-  "about": {
-    "title": "关于 SnapTrans",
-    "description": "跨平台截图翻译工具",
-    "version": "版本",
-    "author": "开发者: 你的名字",
-    "license": "许可证",
-    "close": "关闭"
-  },
-  "screenshot": {
-    "select_area": "选择区域",
-    "adjust_area": "调整区域",
-    "toolbar": {
-      "rectangle": "矩形",
-      "circle": "圆形",
-      "line": "直线",
-      "arrow": "箭头",
-      "pen": "画笔",
-      "text": "文字",
-      "mosaic": "马赛克",
-      "color": "颜色",
-      "undo": "撤销",
-      "pin": "钉图",
+  "main_window": {
+    "title": "Snaptrans 设置",
+    "preferences": {
+      "title": "常规设置",
+      "language": "语言",
+      "font": "字体设置",
+      "default_save_path": "默认保存路径",
+      "auto_start": "开机自启动",
       "save": "保存",
-      "cancel": "取消",
-      "copy": "复制"
+      "cancel": "取消"
+    },
+    "control": {
+      "title": "快捷键",
+      "screenshot_hotkey": "截屏快捷键",
+      "translate_hotkey": "翻译快捷键"
+    },
+    "about": {
+      "title": "关于",
+      "app_name": "Snaptrans",
+      "description": "跨平台截图翻译工具",
+      "version": "版本",
+      "app_version": "0.1.0",
+      "author": "开发者: NCl3",
+      "license": "开源协议",
+      "close": "关闭"
     }
-  },
-  "translate": {
-    "original": "原文",
-    "translated": "译文",
-    "target_language": "目标语言",
-    "translating": "翻译中...",
-    "error": "翻译失败",
-    "retry": "重试"
-  },
-  "common": {
-    "ok": "确定",
-    "cancel": "取消",
-    "save": "保存",
-    "delete": "删除",
-    "edit": "编辑",
-    "copy": "复制",
-    "paste": "粘贴"
   }
 }
