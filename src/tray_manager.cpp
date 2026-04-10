@@ -1,10 +1,10 @@
 #include "tray_manager.h"
+#include "i18n_manager.h" // 引入 i18n
 #include <iostream>
 #include <cstring>
 
 #ifdef _WIN32
 #include <windows.h>
-// Windows 中文防乱码转码
 static std::string utf8ToLocalCodepage(const char *utf8) {
 	int wlen = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, nullptr, 0);
 	if (wlen <= 0) return utf8;
@@ -37,15 +37,12 @@ bool TrayManager::initialize(GLFWwindow *window, const std::string &iconPath) {
 	}
 
 	running_ = true;
-	std::cout << "System tray initialized successfully" << std::endl;
 	return true;
 }
 
 void TrayManager::update() {
 	if (!running_) return;
-	if (tray_loop(0) != 0) {
-		running_ = false;
-	}
+	if (tray_loop(0) != 0) running_ = false;
 }
 
 void TrayManager::shutdown() {
@@ -60,33 +57,24 @@ void TrayManager::setWindowVisible(bool visible) {
 
 	windowVisible_ = visible;
 	if (visible) {
-		// 🌟 第一步：先搭台（在窗口还是隐藏状态时，把物理形态调好）
-		// 向系统查询：现在是否缩在任务栏里？
+		// 1. 先搭台：精准施药
 		if (glfwGetWindowAttrib(window_, GLFW_ICONIFIED)) {
 			if (glfwGetWindowAttrib(window_, GLFW_MAXIMIZED)) {
-				// 如果缩下去前是全屏，先下达“最大化”指令
 				glfwMaximizeWindow(window_);
 			}
 			else {
-				// 如果缩下去前是普通窗，先下达“还原”指令
 				glfwRestoreWindow(window_);
 			}
 		}
-
-		// 🌟 第二步：再拉幕（一切就绪后，一次性把完美的窗口呈现给用户）
-		// 此时调用 ShowWindow，系统会直接以“最终形态”完成动画显示
+		// 2. 再拉幕
 		glfwShowWindow(window_);
-
-		// 第三步：聚焦
+		// 3. 聚焦
 		glfwFocusWindow(window_);
-
 	}
 	else {
-		// 隐藏逻辑保持不变
 		glfwHideWindow(window_);
 	}
 
-	// 同步托盘菜单状态
 	menuItems_[MenuIndex::ShowHide].checked = windowVisible_ ? 1 : 0;
 	tray_update(&tray_);
 }
@@ -96,42 +84,45 @@ void TrayManager::toggleWindowVisibility() {
 }
 
 void TrayManager::setupMenu() {
-	// 🌟 核心优化：定义一个局部 Lambda 匿名函数，专门用来构建普通菜单项
-	// 这样能消灭大量重复的 memset 和 #ifdef 代码，极度清爽
 	auto buildItem = [&](MenuIndex index, const std::string &text, void (*cb)(struct tray_menu *), bool checked = false) {
 #ifdef _WIN32
 		menuTexts_[index] = utf8ToLocalCodepage(text.c_str());
 #else
 		menuTexts_[index] = text;
 #endif
-		memset(&menuItems_[index], 0, sizeof(struct tray_menu)); // 清零洗净内存
+		memset(&menuItems_[index], 0, sizeof(struct tray_menu));
 		menuItems_[index].text = const_cast<char *>(menuTexts_[index].c_str());
 		menuItems_[index].checked = checked ? 1 : 0;
 		menuItems_[index].cb = cb;
 		menuItems_[index].context = this;
 	};
 
-	// 局部的 Lambda：专门用来构建分隔线
 	auto buildSeparator = [&](MenuIndex index) {
 		memset(&menuItems_[index], 0, sizeof(struct tray_menu));
 		menuItems_[index].text = const_cast<char *>("-");
 	};
 
-	// ⬇️ 接下来组装菜单，逻辑清晰得就像在写配置文件 ⬇️
-
-	buildItem(MenuIndex::ShowHide, "显示/隐藏", onShowHideClicked, windowVisible_);
-	buildItem(MenuIndex::Settings, "设置", onSettingsClicked);
+	// 使用 i18n 提取菜单文本
+	buildItem(MenuIndex::ShowHide, tr("menu.show_hide"), onShowHideClicked, windowVisible_);
+	buildItem(MenuIndex::Settings, tr("menu.settings"), onSettingsClicked);
 	buildSeparator(MenuIndex::Separator1);
-	buildItem(MenuIndex::About, "关于", onAboutClicked);
+	buildItem(MenuIndex::About, tr("menu.about"), onAboutClicked);
 	buildSeparator(MenuIndex::Separator2);
-	buildItem(MenuIndex::Quit, "退出", onQuitClicked);
+	buildItem(MenuIndex::Quit, tr("menu.quit"), onQuitClicked);
 
-	// 结束符 (必须全空)
 	memset(&menuItems_[MenuIndex::Terminator], 0, sizeof(struct tray_menu));
-
-	// 把数组底层内存交给 C 库
 	tray_.menu = menuItems_.data();
 }
+
+void TrayManager::rebuildMenu() {
+	if (!running_) return;
+
+	// 1. 重新执行一遍菜单构建逻辑（这会触发 tr() 重新去读最新的 JSON）
+	setupMenu();
+	// 2. 拿着组装好的新菜单，通知操作系统底层进行强制刷新
+	tray_update(&tray_);
+}
+
 
 void TrayManager::onShowHideClicked(struct tray_menu *item) {
 	TrayManager *manager = static_cast<TrayManager *>(item->context);
@@ -139,18 +130,17 @@ void TrayManager::onShowHideClicked(struct tray_menu *item) {
 }
 
 void TrayManager::onSettingsClicked(struct tray_menu *item) {
-	std::cout << "Settings clicked - TODO: implement settings dialog" << std::endl;
+	TrayManager *manager = static_cast<TrayManager *>(item->context);
+	if (manager) manager->setWindowVisible(true);
 }
 
 void TrayManager::onAboutClicked(struct tray_menu *item) {
-	std::cout << "SnapTrans - Screen Translation Tool" << std::endl;
-	std::cout << "Version: 0.1.0" << std::endl;
+	// 暂时也可以呼出主窗口
+	TrayManager *manager = static_cast<TrayManager *>(item->context);
+	if (manager) manager->setWindowVisible(true);
 }
 
 void TrayManager::onQuitClicked(struct tray_menu *item) {
 	TrayManager *manager = static_cast<TrayManager *>(item->context);
-	if (manager && manager->exitCallback_) {
-		// 仅仅发信号给 main.cpp 退出循环，严禁在此处调用 shutdown() 避免进程暴毙
-		manager->exitCallback_();
-	}
+	if (manager && manager->exitCallback_) manager->exitCallback_();
 }

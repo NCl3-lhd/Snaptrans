@@ -1,17 +1,16 @@
 {
   "app_name": "SnapTrans",
   "app_version": "0.1.0",
-  
   "menu": {
     "show_hide": "显示/隐藏",
     "settings": "设置",
     "about": "关于",
     "quit": "退出"
   },
-  
   "settings": {
     "title": "设置",
     "language": "语言",
+    "font": "字体",
     "hotkey": "快捷键",
     "screenshot_hotkey": "截图快捷键",
     "translate_hotkey": "翻译快捷键",
@@ -21,16 +20,14 @@
     "save": "保存",
     "cancel": "取消"
   },
-  
   "about": {
     "title": "关于 SnapTrans",
     "description": "跨平台截图翻译工具",
     "version": "版本",
-    "author": "开发者",
+    "author": "开发者: 你的名字",
     "license": "许可证",
     "close": "关闭"
   },
-  
   "screenshot": {
     "select_area": "选择区域",
     "adjust_area": "调整区域",
@@ -50,7 +47,6 @@
       "copy": "复制"
     }
   },
-  
   "translate": {
     "original": "原文",
     "translated": "译文",
@@ -59,7 +55,6 @@
     "error": "翻译失败",
     "retry": "重试"
   },
-  
   "common": {
     "ok": "确定",
     "cancel": "取消",

@@ -37,21 +37,24 @@ extern "C" {
 #include "tray.h"
 }
 
-/**
- * @brief 系统托盘管理器
- */
+// 阅后即焚：防止宏污染外部文件
+#if defined(TRAY_APPKIT)
+#undef objc_msgSend 
+#endif
+
 class TrayManager {
   public:
   using MenuCallback = std::function<void()>;
 
   static TrayManager &getInstance();
-  bool initialize(GLFWwindow *window, const std::string &iconPath = "assets/icons/tray.png");
+  bool initialize(GLFWwindow *window, const std::string &iconPath);
   void update();
   void shutdown();
   void setWindowVisible(bool visible);
   void toggleWindowVisibility();
   bool isRunning() const { return running_; }
   void setExitCallback(MenuCallback callback) { exitCallback_ = callback; }
+  void rebuildMenu();
 
   private:
   TrayManager() = default;
@@ -59,7 +62,6 @@ class TrayManager {
   TrayManager(const TrayManager &) = delete;
   TrayManager &operator=(const TrayManager &) = delete;
 
-  // 托盘菜单回调（静态函数，用于 C 接口）
   static void onShowHideClicked(struct tray_menu *item);
   static void onSettingsClicked(struct tray_menu *item);
   static void onAboutClicked(struct tray_menu *item);
@@ -70,12 +72,11 @@ class TrayManager {
   private:
   GLFWwindow *window_ = nullptr;
   bool running_ = false;
-  bool windowVisible_ = true;
+  bool windowVisible_ = false; // 默认启动时隐藏
   struct tray tray_;
   MenuCallback exitCallback_;
   std::string storedIconPath_;
 
-  // 🌟 定义菜单项的固定索引常量，消灭“魔术数字”
   enum MenuIndex : size_t {
     ShowHide = 0,
     Settings = 1,
@@ -83,11 +84,10 @@ class TrayManager {
     About = 3,
     Separator2 = 4,
     Quit = 5,
-    Terminator = 6,      // 必须有这个全空的结束符
-    MAX_MENU_ITEMS = 15  // 数组最大容量
+    Terminator = 6,
+    MAX_MENU_ITEMS = 15
   };
 
-  // 使用 std::array 固定大小
   std::array<std::string, MAX_MENU_ITEMS> menuTexts_;
   std::array<struct tray_menu, MAX_MENU_ITEMS> menuItems_;
 };

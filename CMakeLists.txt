@@ -140,17 +140,28 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   nlohmann_json::nlohmann_json
 )
 
-# 13. 统一且清爽的跨平台资源复制逻辑 (修复：防止资源多重拷贝)
+# 13. 统一且清爽的跨平台资源复制逻辑 (终极修复版：独立任务，每次必更)
 set(ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 
 if(EXISTS ${ASSETS_DIR})
   if(APPLE)
-    # macOS: 将整个 assets 目录统一复制到 App Bundle 的 Resources 中
-    # 结果路径: Snaptrans.app/Contents/Resources/assets/
-    file(COPY ${ASSETS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.app/Contents/Resources)
+    # macOS: 创建一个独立的自定义目标，加入 ALL 表示每次 Build 必定执行
+    add_custom_target(SyncAssets ALL
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${ASSETS_DIR}
+      ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.app/Contents/Resources/assets
+      COMMENT "Syncing assets to macOS App Bundle..."
+    )
   else()
-    # Win/Linux: 复制到与可执行文件同级的构建目录
-    # 结果路径: build/assets/
-    file(COPY ${ASSETS_DIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+    # Win/Linux: 同步到 build 目录
+    add_custom_target(SyncAssets ALL
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${ASSETS_DIR}
+      $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
+      COMMENT "Syncing assets to build directory..."
+    )
   endif()
+
+  # 建立依赖关系：在编译主程序之前，必须先完成同步任务
+  add_dependencies(${PROJECT_NAME} SyncAssets)
 endif()

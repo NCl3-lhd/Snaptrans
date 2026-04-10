@@ -8,10 +8,10 @@
     "about": "About",
     "quit": "Quit"
   },
-  
   "settings": {
     "title": "Settings",
     "language": "Language",
+    "font": "font",
     "hotkey": "Hotkeys",
     "screenshot_hotkey": "Screenshot Hotkey",
     "translate_hotkey": "Translate Hotkey",
@@ -21,7 +21,6 @@
     "save": "Save",
     "cancel": "Cancel"
   },
-  
   "about": {
     "title": "About SnapTrans",
     "description": "Cross-platform Screenshot & Translation Tool",
@@ -30,7 +29,6 @@
     "license": "License",
     "close": "Close"
   },
-  
   "screenshot": {
     "select_area": "Select Area",
     "adjust_area": "Adjust Area",
@@ -50,7 +48,6 @@
       "copy": "Copy"
     }
   },
-  
   "translate": {
     "original": "Original",
     "translated": "Translated",
@@ -59,7 +56,6 @@
     "error": "Translation Failed",
     "retry": "Retry"
   },
-  
   "common": {
     "ok": "OK",
     "cancel": "Cancel",
