@@ -5,6 +5,11 @@
 #include "tray_manager.h"
 #include "i18n_manager.h" 
 #include "settings_window.h"
+
+// 🌟 引入热键管理器与原子操作
+#include "hotkey_manager.h"
+#include <atomic> 
+
 #include <iostream>
 #include <filesystem>
 // 只能在某一个 .cpp 文件里定义 IMPLEMENTATION，通常就在 main.cpp
@@ -16,24 +21,21 @@ namespace fs = std::filesystem;
 // 全局常量配置区
 // =====================================================================
 namespace Config {
-  // 窗口配置
   constexpr int   WINDOW_WIDTH = 450;
   constexpr int   WINDOW_HEIGHT = 250;
   constexpr const char *WINDOW_TITLE = "Snaptrans";
 
-  // 渲染与休眠控制
-  constexpr float CLEAR_COLOR[4] = { 0.12f, 0.12f, 0.12f, 1.0f }; // 深灰色背景
-  constexpr double IDLE_TIMEOUT = 0.016; // 后台休眠唤醒间隔 (约 60FPS)
+  constexpr float CLEAR_COLOR[4] = { 0.12f, 0.12f, 0.12f, 1.0f };
+  constexpr double IDLE_TIMEOUT = 0.016;
 
-  // 字体配置
   constexpr float FONT_SIZE = 18.0f;
   constexpr const char *BASE_FONT_PATH = "assets/fonts/NotoSans_Medium.ttf";
   constexpr const char *CJK_FONT_PATH = "assets/fonts/NotoSansSC_Medium.ttf";
-
-  // 默认状态
   constexpr const char *DEFAULT_LOCALE = "en_US";
+
+  constexpr const int SCREENSHOT_EVENT_ID = 1;
+  constexpr const int TRANSLATION_EVENT_ID = 2;
 }
-// =====================================================================
 
 static bool should_quit = false;
 static bool g_need_font_rebuild = true;
@@ -62,37 +64,30 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-  // 初始化语言
+  // 初始化语言与 UI
   g_current_locale = Config::DEFAULT_LOCALE;
   I18nManager::getInstance().loadLanguage(g_current_locale);
-
-  // 实例化 UI 模块并初始化
   SettingsWindow settingsWin;
   settingsWin.init(g_current_locale);
 
-  // 创建窗口 (引用 Config)
+  // 创建窗口
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
   GLFWwindow *window = glfwCreateWindow(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Config::WINDOW_TITLE, NULL, NULL);
   if (!window) { glfwTerminate(); return -1; }
 
-  // ==========================================================
-  // 🌟 代码运行时：动态注入窗口图标 (仅限 Windows / Linux)
-  // macOS 窗口没有标题栏图标，且 Dock 图标由 .app 里的 .icns 接管，故跳过
-  // ==========================================================
+  //加载窗口图片
 #ifndef __APPLE__
   GLFWimage images[1];
   images[0].pixels = stbi_load("assets/icons/tray.png", &images[0].width, &images[0].height, 0, 4);
-
   if (images[0].pixels) {
     glfwSetWindowIcon(window, 1, images);
     stbi_image_free(images[0].pixels);
   }
   else {
-    // 如果在 Windows 下依然报错，可以打印真正的错误原因：
     std::cerr << "Warning: Failed to load window icon! Reason: " << stbi_failure_reason() << std::endl;
   }
 #endif
-  
+
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
 
@@ -103,10 +98,8 @@ int main() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO &io = ImGui::GetIO(); (void)io;
-
   ImGui::StyleColorsDark();
   ImGui::GetStyle().WindowRounding = 0.0f;
-
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init("#version 330");
 
@@ -127,10 +120,49 @@ int main() {
     glfwSetWindowShouldClose(window, GLFW_TRUE);
   });
 
+  // ==========================================================
+  // 🌟 初始化系统级全局热键模块
+  // ==========================================================
+  auto &hotkeyMgr = HotkeyManager::getInstance();
+  hotkeyMgr.start(); // 启动后台守护线程
+
+  // 假设 1 代表截图，注册 Ctrl + Alt + A
+  hotkeyMgr.registerHotkey(Config::SCREENSHOT_EVENT_ID, KeyModifier::Alt, KeyCode::S);
+  // 🌟 跨线程事件标记：当后台监听到capture热键时，置为 true
+  std::atomic<bool> trigger_screenshot{ false };
+  hotkeyMgr.addCallback([&trigger_screenshot](const HotkeyEvent &event) {
+    if (event.id == Config::SCREENSHOT_EVENT_ID) {
+      // ⚠️ 此时处于后台线程触发回调函数，绝对不能直接操作 UI 或 OpenGL
+      // 将原子标记置为 true，让主线程在下一帧去消费它
+      trigger_screenshot = true;
+      std::cerr << "screenshot" << std::endl;
+    }
+  });
+  // 假设 1 代表截图，注册 Ctrl + Alt + A
+  hotkeyMgr.registerHotkey(Config::TRANSLATION_EVENT_ID, KeyModifier::Alt, KeyCode::T);
+  std::atomic<bool> trigger_translation{ false };
+  hotkeyMgr.addCallback([&trigger_translation](const HotkeyEvent &event) {
+    if (event.id == Config::TRANSLATION_EVENT_ID) {
+      trigger_translation = true;
+      std::cerr << "translation" << std::endl;
+    }
+  });
+  // ==========================================================
+
   // =================== 主循环 ===================
   while (!glfwWindowShouldClose(window) && !should_quit) {
 
-    // 1. 字体动态合并机制 (引用 Config)
+    // 🌟 1. 跨线程任务消费：在这里执行业务逻辑，绝对安全！
+    if (trigger_screenshot.exchange(false)) { // 读取并重置为 false
+      std::cerr << "[SnapTrans] 触发全局截图唤醒！" << std::endl;
+
+      // 唤醒主窗口 (如果之前被隐藏了)
+      trayManager.setWindowVisible(true);
+
+      // TODO: 在这里触发你的跨平台截屏库逻辑
+    }
+
+    // 2. 字体动态合并机制
     if (g_need_font_rebuild) {
       ImGui_ImplOpenGL3_DestroyDeviceObjects();
       io.Fonts->Clear();
@@ -139,7 +171,6 @@ int main() {
       font_config.OversampleH = 2;
       font_config.OversampleV = 2;
 
-      // 无条件加载保底字体
       if (fs::exists(Config::BASE_FONT_PATH)) {
         io.Fonts->AddFontFromFileTTF(Config::BASE_FONT_PATH, Config::FONT_SIZE, &font_config, io.Fonts->GetGlyphRangesDefault());
       }
@@ -147,7 +178,6 @@ int main() {
         io.Fonts->AddFontDefault();
       }
 
-      // 根据语言动态追加 CJK 字体
       if (g_current_locale == "zh_CN") {
         if (fs::exists(Config::CJK_FONT_PATH)) {
           font_config.MergeMode = true;
@@ -160,13 +190,18 @@ int main() {
       g_need_font_rebuild = false;
     }
 
-    // 2. 事件分发与休眠 (引用 Config)
-    if (glfwGetWindowAttrib(window, GLFW_VISIBLE)) glfwPollEvents();
-    else glfwWaitEventsTimeout(Config::IDLE_TIMEOUT);
+    // 3. 事件分发与休眠
+    // 巧妙修改：如果收到热键信号，立即放弃休眠，全速渲染下一帧
+    if (glfwGetWindowAttrib(window, GLFW_VISIBLE) || trigger_screenshot) {
+      glfwPollEvents();
+    }
+    else {
+      glfwWaitEventsTimeout(Config::IDLE_TIMEOUT);
+    }
 
     trayManager.update();
 
-    // 3. 渲染骨架
+    // 4. 渲染骨架
     if (glfwGetWindowAttrib(window, GLFW_VISIBLE)) {
       ImGui_ImplOpenGL3_NewFrame();
       ImGui_ImplGlfw_NewFrame();
@@ -174,7 +209,7 @@ int main() {
 
       glfwSetWindowTitle(window, tr("main_window.title"));
 
-      // 核心：把控制权交给 UI 类！
+      // 核心：把控制权交给 UI 类
       settingsWin.render(g_need_font_rebuild, g_current_locale);
 
       ImGui::Render();
@@ -183,7 +218,6 @@ int main() {
       glfwGetFramebufferSize(window, &display_w, &display_h);
       glViewport(0, 0, display_w, display_h);
 
-      // 引用 Config 中的背景颜色
       glClearColor(Config::CLEAR_COLOR[0], Config::CLEAR_COLOR[1], Config::CLEAR_COLOR[2], Config::CLEAR_COLOR[3]);
       glClear(GL_COLOR_BUFFER_BIT);
 
@@ -193,6 +227,9 @@ int main() {
   }
 
   // =================== 清理与退出 ===================
+  // 🌟 必须在程序退出前关闭后台守护线程，释放系统句柄
+  hotkeyMgr.stop();
+
   trayManager.shutdown();
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();

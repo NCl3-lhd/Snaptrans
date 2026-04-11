@@ -71,6 +71,7 @@ set(PROJECT_SOURCES
   src/tray_manager.cpp
   src/i18n_manager.cpp
   src/settings_window.cpp
+  src/hotkey_manager.cpp
   ${IMGUI_SOURCES}
 )
 
@@ -133,9 +134,21 @@ if(APPLE)
 
   # 屏蔽 OpenGL 废弃警告
   target_compile_definitions(${PROJECT_NAME} PRIVATE GL_SILENCE_DEPRECATION)
+
+  # macOS: 需要 Carbon 框架处理全局键盘拦截
+  find_library(CARBON_FRAMEWORK Carbon)
+  if(NOT CARBON_FRAMEWORK)
+    message(FATAL_ERROR "Carbon framework not found! Apple environment required.")
+  endif()
+  target_link_libraries(${PROJECT_NAME} PRIVATE ${CARBON_FRAMEWORK})
+
 elseif(WIN32)
   # Windows: 不需要额外库
   target_compile_definitions(${PROJECT_NAME} PRIVATE TRAY_WINAPI=1)
+
+  # Windows: 需要 User32 处理 RegisterHotKey 和 GetMessage
+  target_link_libraries(${PROJECT_NAME} PRIVATE user32)
+
 elseif(UNIX AND NOT APPLE)
   # Linux: 需要 GTK3 和 AppIndicator
   find_package(PkgConfig REQUIRED)
