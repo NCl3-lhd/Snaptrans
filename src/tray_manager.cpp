@@ -1,8 +1,10 @@
 #include "tray_manager.h"
-#include "i18n_manager.h" // 引入 i18n
+#include "windows_manager.h" // 🌟 引入窗口管家进行状态委派
+#include "i18n_manager.h"
 #include <iostream>
 #include <cstring>
 
+// Windows 平台的中文乱码处理保留
 #ifdef _WIN32
 #include <windows.h>
 static std::string utf8ToLocalCodepage(const char *utf8) {
@@ -24,8 +26,7 @@ TrayManager &TrayManager::getInstance() {
 	return instance;
 }
 
-bool TrayManager::initialize(GLFWwindow *window, const std::string &iconPath) {
-	window_ = window;
+bool TrayManager::initialize(const std::string &iconPath) {
 	storedIconPath_ = iconPath;
 	tray_.icon = const_cast<char *>(storedIconPath_.c_str());
 
@@ -52,35 +53,13 @@ void TrayManager::shutdown() {
 	}
 }
 
-void TrayManager::setWindowVisible(bool visible) {
-	if (!window_) return;
-
-	windowVisible_ = visible;
-	if (visible) {
-		// 1. 先搭台：精准施药
-		if (glfwGetWindowAttrib(window_, GLFW_ICONIFIED)) {
-			if (glfwGetWindowAttrib(window_, GLFW_MAXIMIZED)) {
-				glfwMaximizeWindow(window_);
-			}
-			else {
-				glfwRestoreWindow(window_);
-			}
-		}
-		// 2. 再拉幕
-		glfwShowWindow(window_);
-		// 3. 聚焦
-		glfwFocusWindow(window_);
-	}
-	else {
-		glfwHideWindow(window_);
-	}
-
-	menuItems_[MenuIndex::ShowHide].checked = windowVisible_ ? 1 : 0;
+// 🌟 新增：供 WindowManager 调用的同步接口
+void TrayManager::updateMenuCheckState(bool isSettingsVisible) {
+	if (!running_) return;
+	// 更新“显示/隐藏”菜单项的勾选状态
+	menuItems_[MenuIndex::ShowHide].checked = isSettingsVisible ? 1 : 0;
+	// 通知底层托盘组件重绘
 	tray_update(&tray_);
-}
-
-void TrayManager::toggleWindowVisibility() {
-	setWindowVisible(!windowVisible_);
 }
 
 void TrayManager::setupMenu() {
@@ -102,8 +81,8 @@ void TrayManager::setupMenu() {
 		menuItems_[index].text = const_cast<char *>("-");
 	};
 
-	// 使用 i18n 提取菜单文本
-	buildItem(MenuIndex::ShowHide, tr("menu.show_hide"), onShowHideClicked, windowVisible_);
+	// 默认初始状态为 false，真正的勾选状态将由 WindowManager 初始化后同步过来
+	buildItem(MenuIndex::ShowHide, tr("menu.show_hide"), onShowHideClicked, false);
 	buildItem(MenuIndex::Settings, tr("menu.settings"), onSettingsClicked);
 	buildSeparator(MenuIndex::Separator1);
 	buildItem(MenuIndex::About, tr("menu.about"), onAboutClicked);
@@ -112,35 +91,32 @@ void TrayManager::setupMenu() {
 
 	memset(&menuItems_[MenuIndex::Terminator], 0, sizeof(struct tray_menu));
 	tray_.menu = menuItems_.data();
-}
+	}
 
 void TrayManager::rebuildMenu() {
 	if (!running_) return;
-
-	// 1. 重新执行一遍菜单构建逻辑（这会触发 tr() 重新去读最新的 JSON）
+	// 重新执行一次菜单构建逻辑以读取新语言
 	setupMenu();
-	// 2. 拿着组装好的新菜单，通知操作系统底层进行强制刷新
+	// 拿着组装好的新菜单，通知操作系统底层进行刷新
 	tray_update(&tray_);
 }
 
+// ==========================================================
+// 🌟 托盘事件回调：将执行权全部上交至 WindowManager
+// ==========================================================
 
 void TrayManager::onShowHideClicked(struct tray_menu *item) {
-	TrayManager *manager = static_cast<TrayManager *>(item->context);
-	if (manager) manager->toggleWindowVisibility();
+	WindowManager::getInstance().toggleSettingsVisible();
 }
 
 void TrayManager::onSettingsClicked(struct tray_menu *item) {
-	TrayManager *manager = static_cast<TrayManager *>(item->context);
-	if (manager) manager->setWindowVisible(true);
+	WindowManager::getInstance().setSettingsVisible(true);
 }
 
 void TrayManager::onAboutClicked(struct tray_menu *item) {
-	// 暂时也可以呼出主窗口
-	TrayManager *manager = static_cast<TrayManager *>(item->context);
-	if (manager) manager->setWindowVisible(true);
+	WindowManager::getInstance().setSettingsVisible(true);
 }
 
 void TrayManager::onQuitClicked(struct tray_menu *item) {
-	TrayManager *manager = static_cast<TrayManager *>(item->context);
-	if (manager && manager->exitCallback_) manager->exitCallback_();
+	WindowManager::getInstance().setShouldQuit();
 }

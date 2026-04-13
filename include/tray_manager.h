@@ -47,14 +47,12 @@ class TrayManager {
   using MenuCallback = std::function<void()>;
 
   static TrayManager &getInstance();
-  bool initialize(GLFWwindow *window, const std::string &iconPath);
+  bool initialize(const std::string &iconPath);
   void update();
   void shutdown();
-  void setWindowVisible(bool visible);
-  void toggleWindowVisibility();
-  bool isRunning() const { return running_; }
-  void setExitCallback(MenuCallback callback) { exitCallback_ = callback; }
   void rebuildMenu();
+  // 供 WindowManager 同步复选框状态
+  void updateMenuCheckState(bool isSettingsVisible);
 
   private:
   TrayManager() = default;
@@ -70,11 +68,8 @@ class TrayManager {
   void setupMenu();
 
   private:
-  GLFWwindow *window_ = nullptr;
   bool running_ = false;
-  bool windowVisible_ = false; // 默认启动时隐藏
   struct tray tray_;
-  MenuCallback exitCallback_;
   std::string storedIconPath_;
 
   enum MenuIndex : size_t {

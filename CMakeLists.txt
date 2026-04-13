@@ -73,6 +73,7 @@ set(PROJECT_SOURCES
   src/settings_window.cpp
   src/hotkey_manager.cpp
   src/control_window.cpp
+  src/windows_manager.cpp
   ${IMGUI_SOURCES}
 )
 
