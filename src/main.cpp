@@ -8,34 +8,18 @@
 
 // 🌟 引入热键管理器与原子操作
 #include "hotkey_manager.h"
+#include "config.h"
+
 #include <atomic> 
 
 #include <iostream>
 #include <filesystem>
+
 // 只能在某一个 .cpp 文件里定义 IMPLEMENTATION，通常就在 main.cpp
 #define STB_IMAGE_IMPLEMENTATION 
 #include "stb_image.h"
 namespace fs = std::filesystem;
 
-// =====================================================================
-// 全局常量配置区
-// =====================================================================
-namespace Config {
-  constexpr int   WINDOW_WIDTH = 450;
-  constexpr int   WINDOW_HEIGHT = 250;
-  constexpr const char *WINDOW_TITLE = "Snaptrans";
-
-  constexpr float CLEAR_COLOR[4] = { 0.12f, 0.12f, 0.12f, 1.0f };
-  constexpr double IDLE_TIMEOUT = 0.016;
-
-  constexpr float FONT_SIZE = 18.0f;
-  constexpr const char *BASE_FONT_PATH = "assets/fonts/NotoSans_Medium.ttf";
-  constexpr const char *CJK_FONT_PATH = "assets/fonts/NotoSansSC_Medium.ttf";
-  constexpr const char *DEFAULT_LOCALE = "en_US";
-
-  constexpr const int SCREENSHOT_EVENT_ID = 1;
-  constexpr const int TRANSLATION_EVENT_ID = 2;
-}
 
 static bool should_quit = false;
 static bool g_need_font_rebuild = true;
@@ -46,12 +30,12 @@ void windowCloseCallback(GLFWwindow *window) {
   glfwSetWindowShouldClose(window, GLFW_FALSE);
   TrayManager::getInstance().setWindowVisible(false);
 }
-void windowFocusCallback(GLFWwindow *window, int focused) {
-  if (focused) TrayManager::getInstance().setWindowVisible(true);
-}
 void windowIconifyCallback(GLFWwindow *window, int iconified) {
   if (iconified) TrayManager::getInstance().setWindowVisible(false);
   else TrayManager::getInstance().setWindowVisible(true);
+}
+void windowFocusCallback(GLFWwindow *window, int focused) {
+  if (focused) TrayManager::getInstance().setWindowVisible(true);
 }
 
 int main() {
@@ -88,7 +72,7 @@ int main() {
   }
 #endif
 
-  glfwMakeContextCurrent(window);
+  glfwMakeContextCurrent(window); // 告诉 OpenGL：接下来的所有画画操作，都画在这个 window 上！
   glfwSwapInterval(1);
 
   glfwSetWindowCloseCallback(window, windowCloseCallback);
@@ -100,7 +84,7 @@ int main() {
   ImGuiIO &io = ImGui::GetIO(); (void)io;
   ImGui::StyleColorsDark();
   ImGui::GetStyle().WindowRounding = 0.0f;
-  ImGui_ImplGlfw_InitForOpenGL(window, true);
+  ImGui_ImplGlfw_InitForOpenGL(window, true); // 告诉 ImGui：去盯着这个 window 抓鼠标和键盘！
   ImGui_ImplOpenGL3_Init("#version 330");
 
   auto &trayManager = TrayManager::getInstance();
@@ -127,7 +111,7 @@ int main() {
   hotkeyMgr.start(); // 启动后台守护线程
 
   // 假设 1 代表截图，注册 Ctrl + Alt + A
-  hotkeyMgr.registerHotkey(Config::SCREENSHOT_EVENT_ID, KeyModifier::Alt, KeyCode::S);
+  // hotkeyMgr.registerHotkey(Config::SCREENSHOT_EVENT_ID, KeyModifier::Alt, KeyCode::S); 交给control_window注册快捷键
   // 🌟 跨线程事件标记：当后台监听到capture热键时，置为 true
   std::atomic<bool> trigger_screenshot{ false };
   hotkeyMgr.addCallback([&trigger_screenshot](const HotkeyEvent &event) {
@@ -139,7 +123,7 @@ int main() {
     }
   });
   // 假设 1 代表截图，注册 Ctrl + Alt + A
-  hotkeyMgr.registerHotkey(Config::TRANSLATION_EVENT_ID, KeyModifier::Alt, KeyCode::T);
+  // hotkeyMgr.registerHotkey(Config::TRANSLATION_EVENT_ID, KeyModifier::Alt, KeyCode::T);
   std::atomic<bool> trigger_translation{ false };
   hotkeyMgr.addCallback([&trigger_translation](const HotkeyEvent &event) {
     if (event.id == Config::TRANSLATION_EVENT_ID) {

@@ -11,7 +11,7 @@ enum class KeyModifier {
   Alt = 1 << 0,
   Ctrl = 1 << 1,
   Shift = 1 << 2,
-  Cmd = 1 << 3 // 专为 macOS 准备
+  Super = 1 << 3 // 专为 macOS 准备
 };
 inline KeyModifier operator|(KeyModifier a, KeyModifier b) {
   return static_cast<KeyModifier>(static_cast<int>(a) | static_cast<int>(b));

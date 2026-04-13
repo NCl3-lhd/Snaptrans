@@ -68,7 +68,7 @@ inline UInt32 mapMacKey(KeyCode key) {
 // 将跨平台 KeyModifier 转换为 macOS 修饰键掩码
 inline UInt32 mapMacModifier(KeyModifier mod) {
   UInt32 macMod = 0;
-  if ((int)mod & (int)KeyModifier::Cmd)   macMod |= cmdKey;
+  if ((int)mod & (int)KeyModifier::Super)   macMod |= cmdKey;
   if ((int)mod & (int)KeyModifier::Alt)   macMod |= optionKey;
   if ((int)mod & (int)KeyModifier::Ctrl)  macMod |= controlKey;
   if ((int)mod & (int)KeyModifier::Shift) macMod |= shiftKey;

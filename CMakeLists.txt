@@ -72,6 +72,7 @@ set(PROJECT_SOURCES
   src/i18n_manager.cpp
   src/settings_window.cpp
   src/hotkey_manager.cpp
+  src/control_window.cpp
   ${IMGUI_SOURCES}
 )
 
