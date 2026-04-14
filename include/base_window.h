@@ -3,7 +3,8 @@
 
 #include <GLFW/glfw3.h>
 #include "imgui.h"
-#include "imgui_impl_opengl3.h" // 需要用到设备对象的创建/销毁
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 #include <string>
 #include "config.h"
 #include "i18n_manager.h"
@@ -52,7 +53,7 @@ class BaseWindow {
     if (ctx_) {
       ImGui::SetCurrentContext(ctx_);
       ImGui_ImplOpenGL3_Shutdown();
-      // ImGui_ImplGlfw_Shutdown();  因为 GLFW 的后端通常是所有窗口共享的，放在大管家那里统一关闭更安全
+      ImGui_ImplGlfw_Shutdown();
       ImGui::DestroyContext(ctx_);
       ctx_ = nullptr;
     }

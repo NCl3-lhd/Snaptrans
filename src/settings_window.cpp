@@ -176,7 +176,10 @@ void SettingsWindow::stopRecordingHottkey() {
 
 void SettingsWindow::windowCloseCallback(GLFWwindow *window) {
   auto *win = static_cast<SettingsWindow *>(glfwGetWindowUserPointer(window));
-  if (win) win->hide(); // 拦截：点 X 只是隐藏
+  if (win) {
+    win->hide();
+    glfwSetWindowShouldClose(window, GLFW_FALSE);
+  }
 }
 
 void SettingsWindow::windowIconifyCallback(GLFWwindow *window, int iconified) {

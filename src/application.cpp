@@ -4,7 +4,6 @@
 #include "tray_manager.h"
 #include "config.h"
 #include "i18n_manager.h"
-#include "imgui_impl_glfw.h"
 
 bool Application::init() {
   if (!glfwInit()) return false;
@@ -83,6 +82,5 @@ void Application::runLoop() {
 void Application::shutdown() {
   TrayManager::getInstance().shutdown();
   WindowManager::getInstance().shutdownAll();
-  ImGui_ImplGlfw_Shutdown();
   glfwTerminate();
 }
