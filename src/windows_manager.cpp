@@ -58,9 +58,9 @@ bool WindowManager::initSettingsWindow() {
 
   // C++作用域魔法：绑定当前实例至窗口句柄
   glfwSetWindowUserPointer(settings_window_, this);
-  glfwSetWindowCloseCallback(settings_window_, windowCloseCallback);
-  glfwSetWindowFocusCallback(settings_window_, windowFocusCallback);
-  glfwSetWindowIconifyCallback(settings_window_, windowIconifyCallback);
+  glfwSetWindowCloseCallback(settings_window_, settingsWindowCloseCallback);
+  glfwSetWindowFocusCallback(settings_window_, settingsWindowFocusCallback);
+  glfwSetWindowIconifyCallback(settings_window_, settingsWindowIconifyCallback);
 
 #ifndef __APPLE__
   GLFWimage images[1];
@@ -102,6 +102,7 @@ bool WindowManager::initOverlayWindow() {
   // 此处可拦截 ESC 等专属按键
 
   glfwMakeContextCurrent(overlay_window_);
+  glfwSwapInterval(1);
 
   ctx_overlay_ = ImGui::CreateContext();
   ImGui::SetCurrentContext(ctx_overlay_);
@@ -121,8 +122,10 @@ void WindowManager::runLoop() {
     // 1. 跨线程任务消费 (状态机切换)
     if (signal_screenshot_.exchange(false)) {
       is_screenshotting_ = true;
-      glfwShowWindow(overlay_window_);
-      glfwFocusWindow(overlay_window_);
+      // TODO: 处理翻译悬浮窗逻辑
+      // glfwShowWindow(overlay_window_);
+      // glfwFocusWindow(overlay_window_);
+
     }
     if (signal_translation_.exchange(false)) {
       show_translation_ = true;
@@ -143,6 +146,12 @@ void WindowManager::runLoop() {
       glfwWaitEventsTimeout(Config::IDLE_TIMEOUT);
     }
 
+    // // 防御性拦截（点击关闭是隐藏而非销毁）
+    // if (glfwWindowShouldClose(settings_window_)) {
+    //   glfwSetWindowShouldClose(settings_window_, GLFW_FALSE);
+    //   setSettingsVisible(false);
+    // }
+
     TrayManager::getInstance().update();
 
     // ==========================================
@@ -151,64 +160,42 @@ void WindowManager::runLoop() {
 
     // 渲染管线 A: 设置主面板
     if (show_settings_) {
-      glfwMakeContextCurrent(settings_window_);
-      ImGui::SetCurrentContext(ctx_settings_);
-
-      ImGui_ImplOpenGL3_NewFrame();
-      ImGui_ImplGlfw_NewFrame();
-      ImGui::NewFrame();
-
-      glfwSetWindowTitle(settings_window_, tr("main_window.title"));
-      settingsWin_.render(need_font_rebuild_, current_locale_);
-
-      ImGui::Render();
-      int display_w, display_h;
-      glfwGetFramebufferSize(settings_window_, &display_w, &display_h);
-      glViewport(0, 0, display_w, display_h);
-      glClearColor(Config::CLEAR_COLOR[0], Config::CLEAR_COLOR[1], Config::CLEAR_COLOR[2], Config::CLEAR_COLOR[3]);
-      glClear(GL_COLOR_BUFFER_BIT);
-      ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-      glfwSwapBuffers(settings_window_);
+      renderSettingsFrame();
     }
 
-    // 渲染管线 B: 沉浸式透明截图层
-    if (is_screenshotting_) {
-      glfwMakeContextCurrent(overlay_window_);
-      ImGui::SetCurrentContext(ctx_overlay_);
+    // // 渲染管线 B: 沉浸式透明截图层
+    // if (is_screenshotting_) {
+    //   glfwMakeContextCurrent(overlay_window_);
+    //   ImGui::SetCurrentContext(ctx_overlay_);
 
-      ImGui_ImplOpenGL3_NewFrame();
-      ImGui_ImplGlfw_NewFrame();
-      ImGui::NewFrame();
+    //   ImGui_ImplOpenGL3_NewFrame();
+    //   ImGui_ImplGlfw_NewFrame();
+    //   ImGui::NewFrame();
 
-      ImGui::SetNextWindowPos(ImVec2(0, 0));
-      ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
-      ImGui::Begin("ScreenshotLayer", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
+    //   ImGui::SetNextWindowPos(ImVec2(0, 0));
+    //   ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+    //   ImGui::Begin("ScreenshotLayer", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-      ImGui::TextColored(ImVec4(1, 0, 0, 1), "[Screenshot Mode Active] Press ESC to cancel.");
-      if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-        is_screenshotting_ = false;
-        glfwHideWindow(overlay_window_);
-      }
-      // TODO: 这里挂载截图选取框的逻辑
+    //   ImGui::TextColored(ImVec4(1, 0, 0, 1), "[Screenshot Mode Active] Press ESC to cancel.");
+    //   if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+    //     is_screenshotting_ = false;
+    //     glfwHideWindow(overlay_window_);
+    //   }
+    //   // TODO: 这里挂载截图选取框的逻辑
 
-      ImGui::End();
+    //   ImGui::End();
 
-      ImGui::Render();
-      int display_w, display_h;
-      glfwGetFramebufferSize(overlay_window_, &display_w, &display_h);
-      glViewport(0, 0, display_w, display_h);
-      // 铺设 20% 透明度的黑底遮罩
-      glClearColor(0.0f, 0.0f, 0.0f, 0.2f);
-      glClear(GL_COLOR_BUFFER_BIT);
-      ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-      glfwSwapBuffers(overlay_window_);
-    }
+    //   ImGui::Render();
+    //   int display_w, display_h;
+    //   glfwGetFramebufferSize(overlay_window_, &display_w, &display_h);
+    //   glViewport(0, 0, display_w, display_h);
+    //   // 铺设 20% 透明度的黑底遮罩
+    //   glClearColor(0.0f, 0.0f, 0.0f, 0.2f);
+    //   glClear(GL_COLOR_BUFFER_BIT);
+    //   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    //   glfwSwapBuffers(overlay_window_);
+    // }
 
-    // 防御性拦截（处理意外的原生关闭按钮点击）
-    if (glfwWindowShouldClose(settings_window_)) {
-      glfwSetWindowShouldClose(settings_window_, GLFW_FALSE);
-      setSettingsVisible(false);
-    }
   }
 }
 
@@ -278,8 +265,12 @@ void WindowManager::setSettingsVisible(bool visible) {
     glfwFocusWindow(settings_window_);
   }
   else {
-    glfwHideWindow(settings_window_);
     settingsWin_.stopRecordingHottkey(); // 失焦时自动停止快捷键录制
+    // 隐藏前也强制刷新一帧，防止操作系统截取残影
+    if (glfwGetWindowAttrib(settings_window_, GLFW_VISIBLE)) {
+      renderSettingsFrame();
+    }
+    glfwHideWindow(settings_window_); // 隐藏后opengl不让这帧不会进入缓存池
   }
   // 同步给系统托盘更新勾选状态
   TrayManager::getInstance().updateMenuCheckState(visible);
@@ -289,15 +280,48 @@ void WindowManager::triggerScreenshot() { signal_screenshot_ = true; }
 void WindowManager::triggerTranslation() { signal_translation_ = true; }
 
 // === 哨兵回调路由机制 ===
-void WindowManager::windowCloseCallback(GLFWwindow *window) {
+void WindowManager::settingsWindowCloseCallback(GLFWwindow *window) {
   auto wm = static_cast<WindowManager *>(glfwGetWindowUserPointer(window));
   if (wm) wm->setSettingsVisible(false);
 }
-void WindowManager::windowIconifyCallback(GLFWwindow *window, int iconified) {
+void WindowManager::settingsWindowIconifyCallback(GLFWwindow *window, int iconified) {
   auto wm = static_cast<WindowManager *>(glfwGetWindowUserPointer(window));
   if (wm && iconified) wm->setSettingsVisible(false);
 }
-void WindowManager::windowFocusCallback(GLFWwindow *window, int focused) {
+void WindowManager::settingsWindowFocusCallback(GLFWwindow *window, int focused) {
   auto wm = static_cast<WindowManager *>(glfwGetWindowUserPointer(window));
-  if (wm && focused) wm->setSettingsVisible(true);
+  if (wm) { 
+    if (focused) {
+      wm->setSettingsVisible(true);
+    }
+    else {
+      // 🌟 核心机制：一旦失焦（发生于最小化动作之前）
+      // 1. 立刻停止录制状态
+      wm->settingsWin_.stopRecordingHottkey();
+      // 2. 强制 OpenGL 渲染一帧干净的 UI，覆盖掉底层的显存缓存
+      wm->renderSettingsFrame();
+    }
+  }
+}
+
+void WindowManager::renderSettingsFrame() {
+  glfwMakeContextCurrent(settings_window_);
+  ImGui::SetCurrentContext(ctx_settings_);  // 记录着 上一帧的 UI 状态、交互逻辑、资源资产、渲染指令
+
+  ImGui_ImplOpenGL3_NewFrame(); 
+  ImGui_ImplGlfw_NewFrame();  // 把 GLFW 截获的鼠标坐标、按键状态、滚轮数值以及两次采样之间的时间增量（Delta Time）塞进 ImGuiIO 结构体中
+  ImGui::NewFrame();  // 清空内存中所有的顶点缓冲区 
+
+  // 业务 UI 代码
+  glfwSetWindowTitle(settings_window_, tr("main_window.title"));
+  settingsWin_.render(need_font_rebuild_, current_locale_);
+
+  ImGui::Render();  // 封箱，将上述描述转换为顶点数
+  int display_w, display_h;
+  glfwGetFramebufferSize(settings_window_, &display_w, &display_h);
+  glViewport(0, 0, display_w, display_h);
+  glClearColor(Config::CLEAR_COLOR[0], Config::CLEAR_COLOR[1], Config::CLEAR_COLOR[2], Config::CLEAR_COLOR[3]);
+  glClear(GL_COLOR_BUFFER_BIT);
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData()); // 搬运。把封好的箱子交给 OpenGL 渲染器发往显卡
+  glfwSwapBuffers(settings_window_);  // 翻牌。把显卡画好的结果展示给用户
 }

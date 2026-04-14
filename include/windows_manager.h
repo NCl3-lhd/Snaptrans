@@ -38,14 +38,15 @@ class WindowManager {
   WindowManager &operator=(const WindowManager &) = delete;
 
   // 🌟 核心：将 GLFW C风格全局回调转为类的私有静态方法，利用 UserPointer 分发
-  static void windowCloseCallback(GLFWwindow *window);
-  static void windowIconifyCallback(GLFWwindow *window, int iconified);
-  static void windowFocusCallback(GLFWwindow *window, int focused);
+  static void settingsWindowCloseCallback(GLFWwindow *window);
+  static void settingsWindowIconifyCallback(GLFWwindow *window, int iconified);
+  static void settingsWindowFocusCallback(GLFWwindow *window, int focused);
 
   // 内部初始化拆分
   bool initSettingsWindow();
   bool initOverlayWindow();
   void rebuildFonts();
+  void renderSettingsFrame();
 
   private:
   // ======= 双原生窗口与独立上下文 =======
