@@ -73,6 +73,7 @@ void ControlWindow::render() {
   std::string prefix = "main_window.";
 
   ImGui::Spacing(); ImGui::Spacing();
+  bool is_hovered = false;
 
   // --- 截图快捷键 UI ---
   ImGui::Text("%s:", tr(prefix + "control.screenshot_hotkey"));
@@ -88,6 +89,10 @@ void ControlWindow::render() {
       recording_hotkey_id_ = screenshot_hotkey_.id;
       HotkeyManager::getInstance().unregisterHotkey(screenshot_hotkey_.id);
     }
+  }
+  // 🌟 绝杀：如果当前正在录制截图快捷键，且鼠标悬停在它上面，标记为 true
+  if (recording_hotkey_id_ == screenshot_hotkey_.id && ImGui::IsItemHovered()) {
+    is_hovered = true;
   }
 
   ImGui::Spacing();
@@ -107,33 +112,15 @@ void ControlWindow::render() {
       HotkeyManager::getInstance().unregisterHotkey(translate_hotkey_.id);
     }
   }
-
-  // 🌟 增强版状态机轮询
-  // if (recording_hotkey_id_ != -1) {
-  //   // 焦点检测：如果窗口失去了焦点（用户切到了别的软件、最小化了等）
-  //   // ImGuiFocusedFlags_RootAndChildWindows 确保焦点在主窗口或其子窗口内
-  //   if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
-  //     cancelRecording(); // 自动取消录制，恢复原样
-  //   }
-  //   else {
-  //     processHotkeyRecording(); // 正常拦截按键
-  //   }
-  // }
-  // if (recording_hotkey_id_ != -1) {
-  //   // ImGuiFocusedFlags_AnyWindow 意味着：只要操作系统把焦点切给了微信、Chrome等别的软件，立刻打断
-  //   if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) {
-  //     cancelRecording();
-  //   }
-  //   else {
-  //     processHotkeyRecording();
-  //   }
-  // }
+  if (recording_hotkey_id_ == translate_hotkey_.id && ImGui::IsItemHovered()) {
+    is_hovered = true;
+  }
   if (recording_hotkey_id_ != -1) {
-    processHotkeyRecording(); // 直接调用拦截器，所有的取消逻辑都在拦截器内部判断
+    processHotkeyRecording(is_hovered); // 直接调用拦截器，所有的取消逻辑都在拦截器内部判断
   }
 }
 
-void ControlWindow::processHotkeyRecording() {
+void ControlWindow::processHotkeyRecording(bool is_hovered) {
   ImGuiIO &io = ImGui::GetIO();
 
   // 1. 记录当前按下的修饰键
@@ -151,7 +138,7 @@ void ControlWindow::processHotkeyRecording() {
 
   // 2. 终极防呆取消逻辑 (ESC + 鼠标点击 + 失去焦点)
   bool focus_lost = !ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows); // 窗口失去焦点（比如切到了别的软件）
-  bool mouse_clicked = ImGui::IsMouseClicked(0) || ImGui::IsMouseClicked(1);        // 鼠标左键或右键被点击
+  bool mouse_clicked = (ImGui::IsMouseClicked(0) || ImGui::IsMouseClicked(1)) && !is_hovered;        // 鼠标左键且离开区域
 
   if (ImGui::IsKeyPressed(ImGuiKey_Escape) || focus_lost || mouse_clicked) {
     cancelRecording();
@@ -331,7 +318,7 @@ KeyCode ControlWindow::mapImGuiKeyToMyKeyCode(int imgui_key) {
     case ImGuiKey_GraveAccent:  return KeyCode::Grave; // ImGui 把波浪号下面的反引号叫 GraveAccent
 
       // 兜底策略
-    default:                    return KeyCode::A;
+    default:                    return KeyCode::None;
   }
 }
 

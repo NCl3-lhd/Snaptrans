@@ -3,7 +3,7 @@
 #include "i18n_manager.h"
 #include <iostream>
 #include <cstring>
-
+#include "application.h"
 // Windows 平台的中文乱码处理保留
 #ifdef _WIN32
 #include <windows.h>
@@ -106,17 +106,17 @@ void TrayManager::rebuildMenu() {
 // ==========================================================
 
 void TrayManager::onShowHideClicked(struct tray_menu *item) {
-	WindowManager::getInstance().toggleSettingsVisible();
+	WindowManager::getInstance().getSettingsWindow()->toggle();
 }
 
 void TrayManager::onSettingsClicked(struct tray_menu *item) {
-	WindowManager::getInstance().setSettingsVisible(true);
+	WindowManager::getInstance().getSettingsWindow()->show();
 }
 
 void TrayManager::onAboutClicked(struct tray_menu *item) {
-	WindowManager::getInstance().setSettingsVisible(true);
+	WindowManager::getInstance().getSettingsWindow()->show();
 }
 
 void TrayManager::onQuitClicked(struct tray_menu *item) {
-	WindowManager::getInstance().setShouldQuit();
+	Application::getInstance().shoudQuit();
 }

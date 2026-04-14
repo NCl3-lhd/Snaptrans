@@ -1,0 +1,10 @@
+{
+  "English": {
+    "translation": "assets/translations/en_US.json",
+    "font": "assets/fonts/NotoSans_Medium.ttf"
+  },
+  "Chinese": {
+    "translation": "assets/translations/zh_CN.json",
+    "font": "assets/fonts/NotoSansSC_Medium.ttf"
+  }
+}

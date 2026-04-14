@@ -26,7 +26,7 @@ class ControlWindow {
   void cancelRecording(); // 把 ESC 取消和失去焦点取消的逻辑统一
   private:
   // 核心逻辑：处理键盘拦截
-  void processHotkeyRecording();
+  void processHotkeyRecording(bool is_hovered);
   // 辅助转换函数
   std::string formatHotkeyName(KeyModifier mod, KeyCode key);
   KeyCode mapImGuiKeyToMyKeyCode(int imgui_key);
