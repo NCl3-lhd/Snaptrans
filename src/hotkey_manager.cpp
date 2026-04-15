@@ -50,19 +50,23 @@ bool HotkeyManager::registerHotkey(int id, KeyModifier mod, KeyCode key) {
     m_registeredHotkeys[id] = { mod, key };
   }
 
-  // 🌟 如果后台线程正在运行，发送消息并【阻塞等待】它的真实执行结果
   if (m_running && m_winThreadId.load() != 0) {
-    // 1. 创建堆上的信封，防止提前析构
     RegisterRequest *req = new RegisterRequest{ id };
     auto future = req->result.get_future();
 
-    // 2. 发送给后台线程 (把信封指针藏在 LPARAM 里)
     PostThreadMessage(m_winThreadId.load(), WM_USER_REGISTER_HOTKEY, 0, reinterpret_cast<LPARAM>(req));
 
-    // 3. 死等后台线程填入结果
+    // 防止后台线程已退出时永久阻塞：等待最多 2 秒
+    std::future_status status = future.wait_for(std::chrono::seconds(2));
+    if (status == std::future_status::timeout) {
+      // 后台线程可能稍后处理并 delete req，这里不释放
+      std::lock_guard<std::mutex> lock(m_hotkeyMutex);
+      m_registeredHotkeys.erase(id);
+      return false;
+    }
+
     bool success = future.get();
 
-    // 4. 如果底层注册失败(可能被占用)，回滚 C++ 内存里的记录
     if (!success) {
       std::lock_guard<std::mutex> lock(m_hotkeyMutex);
       m_registeredHotkeys.erase(id);
@@ -70,7 +74,6 @@ bool HotkeyManager::registerHotkey(int id, KeyModifier mod, KeyCode key) {
     return success;
   }
 
-  // 如果是在 start() 之前调用的，视为延迟注册，默认先返回 true
   return true;
 }
 

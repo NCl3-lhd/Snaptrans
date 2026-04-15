@@ -4,6 +4,7 @@
 #include "tray_manager.h"
 #include "config.h"
 #include "i18n_manager.h"
+#include <iostream>
 
 bool Application::init() {
   if (!glfwInit()) return false;
@@ -52,9 +53,11 @@ void Application::runLoop() {
   while (!should_quit_) {
     // 1. 处理热键跨线程信号
     if (signal_screenshot_.exchange(false)) {
+      std::cerr << "triggerScreenshot" << std::endl;
       // TODO: winMgr.getOverlayWindow()->show();
     }
     if (signal_translation_.exchange(false)) {
+      std::cerr << "triggerTranslation" << std::endl;
       // TODO: 处理翻译动作
     }
 

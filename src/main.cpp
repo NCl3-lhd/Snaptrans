@@ -11,13 +11,10 @@ int main() {
   // 热键事件触发后，告诉 Application
   hotkeyMgr.addCallback([&app](const HotkeyEvent &event) {
     if (event.id == Config::SCREENSHOT_EVENT_ID) {
-      // app.triggerScreenshot();
-      std::cerr << "triggerScreenshot" << "\n";
+      app.triggerScreenshot();
     }
     else if (event.id == Config::TRANSLATION_EVENT_ID) {
-      // app.triggerTranslation();
-      std::cerr << "triggerTranslation" << "\n";
-
+      app.triggerTranslation();
     }
   });
   

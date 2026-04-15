@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <nlohmann/json.hpp>
+#include "config.h"
 
 class I18nManager {
     using json = nlohmann::json;
@@ -22,9 +23,7 @@ class I18nManager {
     I18nManager(const I18nManager &) = delete;
     I18nManager &operator=(const I18nManager &) = delete;
     std::unordered_map<std::string, std::string> dictionary_;
-    std::unordered_map<std::string, std::string> translation_path_;
-    std::unordered_map<std::string, std::string> font_path_;
-    std::string current_language_ = "English";
+    std::string current_language_ = Config::DEFAULT_LANGUAGE;
     json language_info;
 
 };

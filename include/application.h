@@ -14,7 +14,7 @@ class Application {
   bool init();
   void runLoop();
   void shutdown();
-  void shoudQuit() { should_quit_ = true; }
+  void shouldQuit() { should_quit_ = true; }
 
   // 暴露给外部更改全局状态
   void changeLanguage(const std::string &new_Language);

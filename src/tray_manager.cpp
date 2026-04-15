@@ -118,5 +118,5 @@ void TrayManager::onAboutClicked(struct tray_menu *item) {
 }
 
 void TrayManager::onQuitClicked(struct tray_menu *item) {
-	Application::getInstance().shoudQuit();
+	Application::getInstance().shouldQuit();
 }

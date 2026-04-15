@@ -16,7 +16,6 @@ namespace Config {
   constexpr const char *LANGUAGE_INFO_PATH = "assets/language/language.json";
   constexpr const char *BASE_FONT_PATH = "assets/fonts/NotoSans_Medium.ttf";
   constexpr const char *CJK_FONT_PATH = "assets/fonts/NotoSansSC_Medium.ttf";
-  constexpr const char *DEFAULT_LOCALE = "en_US";
   constexpr const char *DEFAULT_LANGUAGE = "English";
 
   constexpr const int SCREENSHOT_EVENT_ID = 1;
