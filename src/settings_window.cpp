@@ -3,6 +3,7 @@
 #include "imgui_impl_glfw.h"
 #include "i18n_manager.h"
 #include "tray_manager.h"
+#include "config_manager.h"
 #include <filesystem>
 #include "application.h"
 
@@ -10,15 +11,32 @@
 namespace fs = std::filesystem;
 
 bool SettingsWindow::init() {
-  // 1. 获取语言列表 (你现有的逻辑)
   languages_ = I18nManager::getInstance().getSupportLanguages();
+
+  auto &cfg = ConfigManager::getInstance();
+  std::string savedLang = cfg.getLanguage();
   for (int i = 0; i < languages_.size(); ++i) {
-    if (languages_[i] == Config::DEFAULT_LANGUAGE) {
+    if (languages_[i] == savedLang) {
       current_language_idx_ = i;
       break;
     }
   }
+  if (current_language_idx_ == -1) {
+    for (int i = 0; i < languages_.size(); ++i) {
+      if (languages_[i] == Config::DEFAULT_LANGUAGE) {
+        current_language_idx_ = i;
+        break;
+      }
+    }
+  }
   if (current_language_idx_ == -1) return false;
+
+  autoStart_ = cfg.getAutoStart();
+  std::string savedPath = cfg.getDefaultSavePath();
+  if (!savedPath.empty()) {
+    strncpy(defaultSavePath_, savedPath.c_str(), IM_ARRAYSIZE(defaultSavePath_) - 1);
+    defaultSavePath_[IM_ARRAYSIZE(defaultSavePath_) - 1] = '\0';
+  }
 
   // ==========================================
   // 🌟 补回丢失的肉体：创建底层窗口与上下文
@@ -111,10 +129,11 @@ void SettingsWindow::renderPreferencesTab() {
           std::string language = languages_[n];
 
           if (I18nManager::getInstance().getCurrentLanguage() != language) {
-            // std::cerr << language << "\n";
             I18nManager::getInstance().loadLanguage(language);
+            ConfigManager::getInstance().setLanguage(language);
             TrayManager::getInstance().rebuildMenu();
             Application::getInstance().setNeedFontRebuild(true);
+            dirty_ = true;
           }
         }
         if (is_selected) ImGui::SetItemDefaultFocus();
@@ -125,14 +144,20 @@ void SettingsWindow::renderPreferencesTab() {
     ImGui::Spacing();
     ImGui::Text("%s", tr(prefix + "preferences.default_save_path"));
     ImGui::SameLine(150);
-    ImGui::InputText("##SavePath", defaultSavePath_, IM_ARRAYSIZE(defaultSavePath_));
+    if (ImGui::InputText("##SavePath", defaultSavePath_, IM_ARRAYSIZE(defaultSavePath_))) {
+      dirty_ = true;
+    }
 
     ImGui::Spacing();
-    ImGui::Checkbox(tr(prefix + "preferences.auto_start"), &autoStart_);
+    if (ImGui::Checkbox(tr(prefix + "preferences.auto_start"), &autoStart_)) {
+      dirty_ = true;
+    }
 
     ImGui::Spacing();
     if (ImGui::Button(tr(prefix + "preferences.save"), ImVec2(80, 0))) {
-      // TODO: 保存配置
+      ConfigManager::getInstance().update();
+      ConfigManager::getInstance().save();
+      dirty_ = false;
     }
 
     ImGui::EndTabItem();
@@ -177,6 +202,11 @@ void SettingsWindow::stopRecordingHottkey() {
 void SettingsWindow::windowCloseCallback(GLFWwindow *window) {
   auto *win = static_cast<SettingsWindow *>(glfwGetWindowUserPointer(window));
   if (win) {
+    if (win->dirty_) {
+      ConfigManager::getInstance().update();
+      ConfigManager::getInstance().save();
+      win->dirty_ = false;
+    }
     win->hide();
     glfwSetWindowShouldClose(window, GLFW_FALSE);
   }

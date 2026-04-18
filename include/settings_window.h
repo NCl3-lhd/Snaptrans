@@ -16,6 +16,15 @@ class SettingsWindow : public BaseWindow {
   // 核心渲染函数：每帧调用。
   // 传入引用，当用户切换语言时，通知主循环去重建字体
   void stopRecordingHottkey();
+
+  const std::vector<std::string> &getLanguages() const { return languages_; }
+  int getCurrentLanguageIdx() const { return current_language_idx_; }
+  bool getAutoStart() const { return autoStart_; }
+  const char *getDefaultSavePath() const { return defaultSavePath_; }
+  bool isDirty() const { return dirty_; }
+  void clearDirty() { dirty_ = false; }
+  ControlWindow &getControlWindow() { return control_window_; }
+
   private:
   
   static void windowCloseCallback(GLFWwindow *window);
@@ -35,5 +44,6 @@ class SettingsWindow : public BaseWindow {
 
   bool autoStart_ = false;
   char defaultSavePath_[256] = "C:\\SnapTrans\\Images";
+  bool dirty_ = false;
 };
 #endif // SETTINGS_WINDOW_H

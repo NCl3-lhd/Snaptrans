@@ -23,7 +23,11 @@ class ControlWindow {
   // 渲染 UI：被主窗口在对应的 Tab 里调用
   void render();
   bool isRecording();
-  void cancelRecording(); // 把 ESC 取消和失去焦点取消的逻辑统一
+  void cancelRecording();
+
+  const UIHotkeyConfig &getScreenshotHotkey() const { return screenshot_hotkey_; }
+  const UIHotkeyConfig &getTranslateHotkey() const { return translate_hotkey_; }
+
   private:
   // 核心逻辑：处理键盘拦截
   void processHotkeyRecording(bool is_hovered);

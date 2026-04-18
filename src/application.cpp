@@ -3,6 +3,7 @@
 #include "windows_manager.h"
 #include "tray_manager.h"
 #include "config.h"
+#include "config_manager.h"
 #include "i18n_manager.h"
 #include <iostream>
 
@@ -16,8 +17,11 @@ bool Application::init() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
   // 确保所有窗口init之前，tr函数没问题
-  I18nManager::getInstance().init();  // 读取language info
-  I18nManager::getInstance().loadLanguage(Config::DEFAULT_LANGUAGE);
+  I18nManager::getInstance().init();
+
+  // 加载持久化配置，如无配置文件则使用默认值
+  ConfigManager::getInstance().load();
+  I18nManager::getInstance().loadLanguage(ConfigManager::getInstance().getLanguage());
 
   // 初始化所有窗口
   if (!WindowManager::getInstance().initAll()) {
@@ -83,6 +87,7 @@ void Application::runLoop() {
 }
 
 void Application::shutdown() {
+  ConfigManager::getInstance().save();
   TrayManager::getInstance().shutdown();
   WindowManager::getInstance().shutdownAll();
   glfwTerminate();

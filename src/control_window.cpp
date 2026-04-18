@@ -2,6 +2,7 @@
 #include "imgui.h"
 #include "i18n_manager.h"
 #include "config.h"
+#include "config_manager.h"
 
 #include <cstdlib> // 提供给 Mac 使用 std::system 
 
@@ -59,12 +60,24 @@ void ControlWindow::cancelRecording() {
 }
 
 void ControlWindow::init() {
-  // 初始化快捷键默认值
-  screenshot_hotkey_ = { Config::SCREENSHOT_EVENT_ID, Config::SCREENSHOT_KEYMODIFIER, Config::SCREENSHOT_KEYCODE, formatHotkeyName(Config::SCREENSHOT_KEYMODIFIER, Config::SCREENSHOT_KEYCODE) };
-  translate_hotkey_ = { Config::TRANSLATION_EVENT_ID, Config::TRANSLATION_KEYMODIFIER, Config::TRANSLATION_KEYCODE, formatHotkeyName(Config::TRANSLATION_KEYMODIFIER, Config::TRANSLATION_KEYCODE) };
-  // translate_hotkey_ = { 2, KeyModifier::Alt, KeyCode::E, "Alt + E" };
+  auto &cfg = ConfigManager::getInstance();
+  auto sMod = cfg.getScreenshotMod();
+  auto sKey = cfg.getScreenshotKey();
+  auto tMod = cfg.getTranslateMod();
+  auto tKey = cfg.getTranslateKey();
 
-  // // 向系统底层注册
+  if (sMod == KeyModifier::None && sKey == KeyCode::None) {
+    sMod = Config::SCREENSHOT_KEYMODIFIER;
+    sKey = Config::SCREENSHOT_KEYCODE;
+  }
+  if (tMod == KeyModifier::None && tKey == KeyCode::None) {
+    tMod = Config::TRANSLATION_KEYMODIFIER;
+    tKey = Config::TRANSLATION_KEYCODE;
+  }
+
+  screenshot_hotkey_ = { Config::SCREENSHOT_EVENT_ID, sMod, sKey, formatHotkeyName(sMod, sKey) };
+  translate_hotkey_ = { Config::TRANSLATION_EVENT_ID, tMod, tKey, formatHotkeyName(tMod, tKey) };
+
   HotkeyManager::getInstance().registerHotkey(screenshot_hotkey_.id, screenshot_hotkey_.mod, screenshot_hotkey_.key);
   HotkeyManager::getInstance().registerHotkey(translate_hotkey_.id, translate_hotkey_.mod, translate_hotkey_.key);
 }
@@ -163,9 +176,8 @@ void ControlWindow::processHotkeyRecording(bool is_hovered) {
           screenshot_hotkey_.mod = new_mod;
           screenshot_hotkey_.key = new_key;
           screenshot_hotkey_.display_name = new_name;
-          // 架构提示：如果你最终使用了 ConfigManager，记得在这里同步一下数据
-          // ConfigManager::getInstance().screenshotHotkey.mod = new_mod;
-          // ConfigManager::getInstance().screenshotHotkey.key = new_key;
+          ConfigManager::getInstance().update();
+          ConfigManager::getInstance().save();
         }
       }
       else if (recording_hotkey_id_ == translate_hotkey_.id) {
@@ -174,9 +186,8 @@ void ControlWindow::processHotkeyRecording(bool is_hovered) {
           translate_hotkey_.mod = new_mod;
           translate_hotkey_.key = new_key;
           translate_hotkey_.display_name = new_name;
-          // 架构提示：同上，同步全局配置
-          // ConfigManager::getInstance().translateHotkey.mod = new_mod;
-          // ConfigManager::getInstance().translateHotkey.key = new_key;
+          ConfigManager::getInstance().update();
+          ConfigManager::getInstance().save();
         }
       }
       // std::cerr << success << "\n";

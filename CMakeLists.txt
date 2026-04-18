@@ -75,6 +75,7 @@ set(PROJECT_SOURCES
   src/control_window.cpp
   src/windows_manager.cpp
   src/application.cpp
+  src/config_manager.cpp
   ${IMGUI_SOURCES}
 )
 
